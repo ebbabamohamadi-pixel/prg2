@@ -1,0 +1,2383 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد مدیریت پروژه | شرکت عمران و توسعه شرق رضوی</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        /* بارگذاری پشتیبان کتابخانه اکسل اگر CDN اصلی در دسترس نبود */
+        function loadXlsxFallback(){
+            if(window.XLSX)return;
+            var s=document.createElement('script');
+            s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+            s.onload=function(){console.log('XLSX fallback loaded')};
+            document.head.appendChild(s);
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="loadXlsxFallback()"></script>
+    <style>
+        :root{--pri:#4361ee;--pri-l:#eef2ff;--sec:#3f37c9;--ok:#2ecc71;--wrn:#f1c40f;--err:#e74c3c;--dk:#1e293b;--gy:#64748b;--lt:#f8fafc;--bd:#e2e8f0;--sh:0 4px 6px -1px rgb(0 0 0/.1),0 2px 4px -2px rgb(0 0 0/.1)}
+        html{font-size:17px}
+        *{box-sizing:border-box;margin:0;padding:0;outline:none;scrollbar-width:thin;scrollbar-color:#9aa8bd #eef2f7}
+        ::-webkit-scrollbar{width:9px;height:9px}
+        ::-webkit-scrollbar-track{background:#eef2f7;border-radius:8px}
+        ::-webkit-scrollbar-thumb{background:#9aa8bd;border-radius:8px;border:2px solid #eef2f7}
+        ::-webkit-scrollbar-thumb:hover{background:#64748b}
+        body{font-family:'Vazirmatn',sans-serif;background:#f1f5f9;color:var(--dk);height:100vh;display:flex;overflow:hidden}
+
+        #loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e3a5f,#4361ee);z-index:2000;display:flex;justify-content:center;align-items:center}
+        .login-box{background:#fff;padding:2.5rem;border-radius:20px;width:100%;max-width:420px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,.25)}
+        .login-logo{font-size:2.8rem;color:var(--pri);margin-bottom:1rem}
+        .login-box h2{margin-bottom:4px;font-size:1.35rem}
+        .login-sub{color:var(--gy);font-size:.95rem;margin-bottom:18px}
+        .login-err{color:var(--err);font-size:.88rem;margin-top:10px;min-height:18px}
+
+        .sidebar{width:268px;background:linear-gradient(180deg,#0f172a,#1e293b);display:flex;flex-direction:column;padding:1.5rem;z-index:10;flex-shrink:0;transition:margin-right .3s ease,transform .3s}
+        .sb-top{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:2rem}
+        .brand{font-size:.98rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;line-height:1.6;flex:1}
+        .sb-collapse-btn{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.05rem;padding:6px;border-radius:8px;transition:all .2s;flex-shrink:0}
+        .sb-collapse-btn:hover{background:rgba(67,97,238,.2);color:#fff}
+        .nav-link{display:flex;align-items:center;padding:10px 14px;color:#94a3b8;text-decoration:none;border-radius:10px;margin-bottom:6px;transition:all .25s;font-weight:500;cursor:pointer;font-size:.94rem;white-space:nowrap}
+        .nav-link:hover,.nav-link.active{background:rgba(67,97,238,.15);color:#fff}
+        .nav-link i{margin-left:10px;width:18px;text-align:center}
+
+        #sbExpand{position:fixed;top:14px;right:14px;z-index:60;width:42px;height:42px;border-radius:11px;background:var(--pri);color:#fff;border:none;cursor:pointer;box-shadow:var(--sh);display:none;align-items:center;justify-content:center;font-size:1.05rem;transition:all .2s}
+        #sbExpand:hover{background:var(--sec);transform:scale(1.05)}
+        @media(min-width:769px){
+            body.sb-collapsed .sidebar{margin-right:-268px}
+            body.sb-collapsed #sbExpand{display:flex}
+        }
+
+        .main-content{flex:1;display:flex;flex-direction:column;overflow-y:auto;scroll-behavior:smooth;padding:1.2rem 1.5rem;opacity:0;transition:opacity .5s;pointer-events:none;min-width:0}
+        .main-content.active{opacity:1;pointer-events:all}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:10px}
+        .search-box{position:relative;width:280px}
+        .search-box input{width:100%;padding:9px 38px 9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;font-family:inherit;font-size:.92rem}
+        .search-box i{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--gy)}
+        .user-profile{display:flex;align-items:center;gap:10px}
+        .avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--pri-l)}
+        .user-name{font-weight:bold;font-size:.95rem}
+        .user-role{font-size:.78rem;color:var(--gy)}
+
+        .filter-bar{background:#fff;border-radius:12px;box-shadow:var(--sh);padding:.8rem 1rem;margin-bottom:.9rem;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+        .fb-group{display:flex;flex-direction:column;gap:5px}
+        .fb-title{font-size:.78rem;color:var(--gy);font-weight:700}
+        .fb-radio{display:flex;gap:6px;flex-wrap:wrap}
+        .fb-radio label{display:flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-size:.85rem;transition:all .15s;background:#fff;user-select:none}
+        .fb-radio label:hover{border-color:var(--pri)}
+        .fb-radio input{accent-color:var(--pri);width:15px;height:15px;cursor:pointer}
+        .fb-radio input:checked+span{color:var(--pri);font-weight:700}
+        .fb-sep{align-self:center;color:#cbd5e1;font-weight:700}
+        .fb-info{font-size:.78rem;color:var(--gy);margin-inline-start:auto;padding-bottom:6px}
+        .fb-info b{color:var(--pri)}
+
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.7rem;margin-bottom:.9rem}
+        .card{background:#fff;padding:.7rem .9rem;border-radius:10px;box-shadow:var(--sh);display:flex;align-items:center;gap:.6rem;transition:transform .2s}
+        .card:hover{transform:translateY(-2px)}
+        .card-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0}
+        .card-info h3{font-size:.76rem;color:var(--gy);margin-bottom:1px}
+        .card-info p{font-size:1.02rem;font-weight:700}
+        .bg-b{background:#e0e7ff;color:var(--pri)}.bg-g{background:#dcfce7;color:var(--ok)}.bg-o{background:#ffedd5;color:var(--wrn)}.bg-r{background:#fee2e2;color:var(--err)}
+
+        .charts-section{margin-bottom:1rem}
+        .charts-section .sec-title{font-size:1rem;font-weight:700;margin-bottom:.7rem;display:flex;align-items:center;gap:8px}
+        .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem}
+        .chart-card{background:#fff;border-radius:12px;box-shadow:var(--sh);padding:.9rem;display:flex;flex-direction:column}
+        .chart-card h4{font-size:.9rem;color:var(--gy);margin-bottom:.5rem;font-weight:600}
+        .chart-card canvas{width:100%!important;max-height:200px}
+
+        .table-container{background:#fff;border-radius:12px;box-shadow:var(--sh);overflow:hidden;margin-bottom:1rem;flex:1;display:flex;flex-direction:column;min-height:340px}
+        .table-header{padding:1rem 1.1rem;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;flex-shrink:0}
+        .table-header h3{font-size:1rem;font-weight:700}
+        .table-actions{display:flex;gap:6px;flex-wrap:wrap}
+        .table-wrapper{overflow:auto;flex:1;min-height:260px}
+        .table-wrapper th{position:sticky;top:0;background:#fff;z-index:2}
+        table{width:100%;border-collapse:collapse}
+        th{text-align:right;padding:.8rem;color:var(--gy);font-weight:500;font-size:.84rem;border-bottom:1px solid var(--bd);white-space:nowrap}
+        td{padding:.8rem;border-bottom:1px solid var(--bd);vertical-align:middle;font-size:.9rem}
+        tbody tr{transition:background .15s}tbody tr:hover{background:#f8fafc}
+        .badge{padding:4px 11px;border-radius:20px;font-size:.75rem;font-weight:600}
+        .badge-active{background:#dcfce7;color:#166534}.badge-pending{background:#ffedd5;color:#9a3412}.badge-hold{background:#f1f5f9;color:#475569}
+        .prog-bg{width:72px;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:5px}
+        .prog-fill{height:100%;background:var(--pri);border-radius:3px}
+        .prog-lbl{font-size:.78rem;color:var(--gy);display:inline-block;min-width:34px}
+        .code-cell{font-family:monospace;font-size:.8rem;color:var(--gy);background:var(--lt);padding:3px 9px;border-radius:5px}
+
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none;justify-content:center;align-items:center;opacity:0;transition:opacity .3s;backdrop-filter:blur(3px)}
+        .modal-overlay.open{display:flex;opacity:1}
+        .modal{background:#fff;width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;box-shadow:none;display:flex;flex-direction:column;overflow:hidden;animation:su .25s ease-out}
+        .modal.normal-size{width:95%;max-width:1000px;height:90vh;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,.25)}
+        @keyframes su{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+        .modal-header{padding:1.1rem;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0}
+        .modal-header h3{font-size:1.02rem}
+        .modal-footer{padding:.8rem 1.1rem;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px;background:#f8fafc;flex-shrink:0}
+        .close-btn{background:none;border:none;font-size:1.25rem;cursor:pointer;color:var(--gy);transition:color .2s;width:34px}.close-btn:hover{color:var(--pri)}
+        .close-btn.x-close:hover{color:var(--err)}
+        .modal-body{flex:1;overflow-y:auto;padding:1.3rem 2rem;display:flex;flex-direction:column;gap:.9rem}
+        .tabs{display:flex;gap:.5rem;border-bottom:1px solid var(--bd);margin-bottom:.9rem;flex-wrap:wrap;flex-shrink:0}
+        .tab-btn{padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;font-family:inherit;font-weight:600;color:var(--gy);cursor:pointer;font-size:.94rem}
+        .tab-btn.active{color:var(--pri);border-bottom-color:var(--pri)}
+        .tab-content{display:none}.tab-content.active{display:block}
+        /* ✅ گرید برنامه/عملکرد: ستون فلکس تا پایین صفحه */
+        #tab-plan.active,#tab-performance.active{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+        #tab-plan .grid-box,#tab-performance .grid-box{flex:1 1 auto;min-height:240px;max-height:none}
+        #tab-plan .grid-box thead th,#tab-performance .grid-box thead th{position:sticky;top:0;z-index:2;background:#f8fafc}
+        .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:.8rem;margin-bottom:.9rem}
+        @media(min-width:1100px){.modal:not(.normal-size) .form-grid{grid-template-columns:repeat(4,1fr)}}
+        .form-group{display:flex;flex-direction:column;gap:4px}
+        .form-group label{font-size:.82rem;color:var(--gy)}
+        .form-control{padding:9px;border:1px solid var(--bd);border-radius:7px;font-family:inherit;font-size:.92rem;transition:border-color .2s}
+        .form-control:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(67,97,238,.1)}
+        .sec-divider{display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:700;color:var(--gy);margin:.3rem 0 .1rem}
+        .sec-divider::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+        .btn{padding:8px 15px;border-radius:7px;border:none;cursor:pointer;font-weight:600;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:.9rem}
+        .btn:active{transform:scale(.97)}.btn-primary{background:var(--pri);color:#fff}.btn-primary:hover{background:var(--sec)}
+        .btn-danger{background:var(--err);color:#fff}.btn-success{background:var(--ok);color:#fff}
+        .btn-outline{background:transparent;border:1px solid var(--bd);color:var(--dk)}.btn-outline:hover{background:var(--pri-l);border-color:var(--pri);color:var(--pri)}
+        .btn-sm{padding:5px 11px;font-size:.82rem}.btn:disabled{opacity:.5;cursor:not-allowed}
+
+        .shamsi-wrap{position:relative;display:flex;align-items:center}
+        .shamsi-wrap .form-control{width:100%;cursor:pointer;padding-left:28px}
+        .shamsi-wrap.pk-open .form-control{border-color:var(--pri);box-shadow:0 0 0 3px rgba(67,97,238,.12)}
+        .shamsi-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--gy);font-size:.9rem;pointer-events:none}
+        .shamsi-x{position:absolute;left:26px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.72rem;cursor:pointer;display:none;background:#fff;border-radius:50%;padding:2px;z-index:1}.shamsi-x:hover{color:var(--err)}
+        .shamsi-picker{position:fixed;z-index:500;background:#fff;border-radius:11px;box-shadow:0 15px 40px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.05);padding:11px;width:300px;font-size:.85rem;user-select:none;animation:pkI .2s ease-out}
+        @keyframes pkI{from{opacity:0;transform:translateY(5px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+        .sp-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid var(--bd)}
+        .sp-nv{background:none;border:none;cursor:pointer;font-size:.88rem;color:var(--gy);padding:4px 7px;border-radius:6px;transition:all .2s;display:flex;align-items:center}
+        .sp-nv:hover{background:var(--pri-l);color:var(--pri)}
+        .sp-ct{display:flex;align-items:center;gap:3px}
+        .sp-tt{font-weight:700;color:var(--dk);font-size:.95rem;padding:0 3px}
+        .sp-yb{background:none;border:none;cursor:pointer;font-size:.6rem;color:var(--gy);padding:3px 4px;border-radius:3px;display:flex;align-items:center}
+        .sp-yb:hover{background:var(--pri-l);color:var(--pri)}
+        .sp-wk{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:4px}
+        .sp-wc{color:var(--gy);font-size:.74rem;font-weight:600;padding:3px 0}.sp-wc.fr{color:var(--err)}
+        .sp-dy{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+        .sp-d{padding:6px 3px;border-radius:6px;cursor:pointer;transition:all .15s;color:var(--dk);font-size:.85rem}
+        .sp-d:hover{background:var(--pri-l);color:var(--pri)}
+        .sp-d.off{color:#cbd5e1}.sp-d.off:hover{background:transparent;color:#cbd5e1;cursor:default}
+        .sp-d.td{border:1.5px solid var(--pri);font-weight:700}
+        .sp-d.sl{background:var(--pri)!important;color:#fff!important;font-weight:700}
+        .sp-d.fr{color:var(--err)}.sp-d.sl.fr{color:#fff!important}
+        .sp-ft{margin-top:7px;padding-top:7px;border-top:1px solid var(--bd);text-align:center}
+        .sp-tb{background:none;border:none;cursor:pointer;color:var(--pri);font-family:inherit;font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:5px;transition:background .2s}
+        .sp-tb:hover{background:var(--pri-l)}
+
+        .gantt-container{position:relative;padding:8px;border:1px solid var(--bd);border-radius:9px;background:#fff;overflow-x:auto;min-height:160px}
+        .gantt-header{display:flex;justify-content:space-between;padding:0 8px 6px 140px;border-bottom:1px solid #eee;margin-bottom:6px;font-size:.8rem;color:var(--gy);min-width:650px}
+        .gantt-chart-wrapper{display:flex;min-width:100%;position:relative}
+        .gantt-labels-col{width:130px;flex-shrink:0;padding-right:6px;padding-top:6px}
+        .gantt-label-item{height:30px;display:flex;align-items:center;font-size:.82rem;margin-bottom:6px;color:var(--dk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px dashed #f0f0f0}
+        .gantt-bars-col{flex:1;position:relative;min-width:450px;padding-top:6px;background-image:linear-gradient(90deg,#f1f5f9 1px,transparent 1px);background-size:10% 100%}
+        .task-bar{position:absolute;height:20px;background:var(--pri);border-radius:3px;color:#fff;font-size:.72rem;display:flex;align-items:center;padding:0 5px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12);white-space:nowrap;overflow:hidden;transition:filter .2s}
+        .task-bar:hover{filter:brightness(1.15);z-index:5}
+        .task-list-mini{width:100%;border-collapse:collapse;margin-top:6px;font-size:.88rem}
+        .task-list-mini th{text-align:right;padding:7px;background:#f8fafc;color:var(--gy);font-size:.8rem}
+        .task-list-mini td{padding:7px;border-bottom:1px solid #eee}
+        .add-task-section{background:#f8fafc;padding:.9rem;border-radius:9px;border:1px solid var(--bd);margin-bottom:.8rem;flex-shrink:0}
+        .add-task-section h4{margin-bottom:6px;font-size:.92rem}
+        .grid-box{border:1px solid var(--bd);border-radius:9px;overflow:auto;max-height:280px;margin-bottom:.4rem}
+        .radio-row{display:flex;gap:18px;align-items:center;padding:9px 2px}
+        .radio-row label{font-size:.9rem!important;color:var(--dk)!important}
+        .form-btns{display:flex;gap:6px;justify-content:flex-start;flex-wrap:wrap}
+
+        .an-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-bottom:1rem}
+        .an-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:1rem}
+        .an-charts .chart-card canvas{width:100%!important;max-height:240px}
+
+        .rp-toolbar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:.6rem}
+        .rp-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--gy);margin:2px 0 8px}
+        .rp-legend b{display:inline-block;width:16px;height:9px;border-radius:3px;margin-left:4px;vertical-align:middle}
+        .rp-rows{min-width:860px;position:relative}
+        .rp-row{display:flex;border-bottom:1px dashed #e5e9f0}
+        .rp-row-label{width:230px;flex-shrink:0;padding:7px 8px}
+        .rp-name{font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .rp-sub{font-size:.72rem;color:var(--gy);margin-top:2px}
+        .rp-row-canvas{flex:1;position:relative;height:46px;min-width:560px;padding:0 4px;background-image:linear-gradient(90deg,#f1f5f9 1px,transparent 1px);background-size:10% 100%}
+        .rp-seg{position:absolute;height:16px;border-radius:3px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:filter .15s}
+        .rp-seg:hover{filter:brightness(1.15);z-index:4}
+        .rp-today{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--err);z-index:5}
+        .rp-today.with-lbl::after{content:'امروز';position:absolute;top:-2px;left:4px;font-size:.62rem;color:var(--err);white-space:nowrap;font-weight:700}
+        .rp-head-dates{display:flex;justify-content:space-between;font-size:.75rem;color:var(--gy);margin-bottom:4px;padding:0 4px}
+
+        /* ===== مقیاس گانت (روزانه/هفتگی/ماهانه/سالانه) ===== */
+        .gz-toolbar{display:flex;gap:4px;align-items:center;margin:2px 0 4px;flex-wrap:wrap}
+        .gz-lbl{font-size:.72rem;color:var(--gy);font-weight:700;margin-left:2px}
+        .gz-btn{padding:3px 10px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:.74rem;color:var(--gy);transition:all .15s}
+        .gz-btn:hover{border-color:var(--pri);color:var(--pri)}
+        .gz-btn.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}
+        .gz-scale{display:flex;align-items:stretch;margin-bottom:2px}
+        .gz-spacer{flex-shrink:0}
+        .gz-cells{flex:1;display:flex;min-width:0}
+        .gz-cell{flex:1 1 0;min-width:0;font-size:.6rem;color:var(--gy);text-align:center;padding:3px 0;border-left:1px solid #eef1f5;white-space:nowrap;overflow:hidden;background:#fbfcfe;font-weight:600}
+        .gz-cell.alt{background:transparent}
+
+        .toast{position:fixed;bottom:18px;left:18px;background:var(--dk);color:#fff;padding:11px 22px;border-radius:7px;box-shadow:0 4px 12px rgba(0,0,0,.2);transform:translateY(100px);transition:transform .3s;z-index:3000;font-size:.92rem}
+        .toast.show{transform:translateY(0)}
+        .loader{border:2px solid #f3f3f3;border-radius:50%;border-top:2px solid #fff;width:12px;height:12px;animation:sp 1s linear infinite;display:none}
+        @keyframes sp{to{transform:rotate(360deg)}}
+        .hidden-input{display:none}
+        #printArea{display:none}
+
+        @media(max-width:768px){
+            .sidebar{position:fixed;right:-268px;height:100%;z-index:50}
+            .sidebar.active{right:0}
+            .main-content{padding:1rem;width:100%}
+            .search-box{display:none}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+            .charts-grid{grid-template-columns:1fr}
+            .an-charts{grid-template-columns:1fr}
+            .modal-body{padding:1rem}
+            #menuToggle{display:inline-flex!important}
+        }
+
+        @media print{
+            @page{size:A4;margin:12mm}
+            html{font-size:15px}
+            body{display:block!important;height:auto!important;overflow:visible!important;background:#fff!important}
+            #loginScreen,#sidebar,#sbExpand,#mainContent,#modalOverlay,#analyticsOverlay,#reportOverlay,#toast{display:none!important}
+            #printArea{display:block!important;color:#000;font-family:'Vazirmatn',sans-serif;font-size:11.5pt}
+            .p-head{text-align:center;border-bottom:2.5px solid #000;padding-bottom:8px;margin-bottom:14px}
+            .p-company{font-size:13.5pt;font-weight:800}
+            .p-title{font-size:15.5pt;font-weight:800;margin:6px 0 2px;color:#1e3a5f}
+            .p-date{font-size:10pt;color:#444}
+            .p-sec{font-size:12.5pt;font-weight:800;margin:14px 0 5px;border-right:4px solid #4361ee;padding-right:7px;page-break-after:avoid}
+            table.p-table{width:100%;border-collapse:collapse;margin-bottom:8px}
+            .p-table th,.p-table td{border:1px solid #555;padding:6px 9px;font-size:10.5pt;text-align:right;vertical-align:top}
+            .p-table th{background:#eef2ff;width:18%;font-weight:700}
+            .p-info td{width:32%}
+            .p-tbl-light th{background:#f1f5f9;width:auto}
+            .p-sign{display:flex;justify-content:space-between;margin-top:26px;font-size:11pt;font-weight:600}
+            .p-foot{margin-top:16px;border-top:1px solid #999;padding-top:6px;font-size:9pt;color:#555;text-align:center}
+            tr{page-break-inside:avoid}
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <div class="login-box">
+        <div class="login-logo"><i class="fa-solid fa-building-user"></i></div>
+        <h2>ورود به سیستم</h2>
+        <p class="login-sub">شرکت عمران و توسعه شرق رضوی</p>
+        <div class="form-group" style="text-align:right;margin-bottom:8px">
+            <label>نام کاربری</label>
+            <input type="text" id="usernameInput" class="form-control" placeholder="admin" autocomplete="username">
+        </div>
+        <div class="form-group" style="text-align:right;margin-bottom:16px">
+            <label>رمز عبور</label>
+            <input type="password" id="passwordInput" class="form-control" placeholder="admin" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary" style="width:100%" id="loginBtn" onclick="handleLogin()">ورود به داشبورد</button>
+        <div class="login-err" id="loginErr"></div>
+    </div>
+</div>
+
+<button id="sbExpand" onclick="toggleSidebar()" title="نمایش سایدبار"><i class="fa-solid fa-angles-left"></i></button>
+
+<nav class="sidebar" id="sidebar">
+    <div class="sb-top">
+        <div class="brand"><i class="fa-solid fa-layer-group"></i><span>شرکت عمران و توسعه شرق رضوی</span></div>
+        <button class="sb-collapse-btn" onclick="toggleSidebar()" title="بستن سایدبار"><i class="fa-solid fa-angles-right"></i></button>
+    </div>
+    <a class="nav-link active"><i class="fa-solid fa-gauge-high"></i><span>کنترل پروژه</span></a>
+    <a class="nav-link" onclick="openReportModal();document.getElementById('sidebar').classList.remove('active')"><i class="fa-solid fa-bars-staggered"></i><span>گزارش کنترل پروژه</span></a>
+    <a class="nav-link"><i class="fa-solid fa-list-check"></i><span>بودجه</span></a>
+    <a class="nav-link"><i class="fa-regular fa-calendar"></i><span>امور قراردادها</span></a>
+    <a class="nav-link"><i class="fa-regular fa-file-lines"></i><span>منابع انسانی</span></a>
+    <a class="nav-link"><i class="fa-solid fa-coins"></i><span>امور مالی</span></a>
+    <div style="flex:1"></div>
+    <a class="nav-link" onclick="location.reload()"><i class="fa-solid fa-rotate"></i><span>بارگذاری مجدد</span></a>
+    <a class="nav-link" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket"></i><span>خروج</span></a>
+</nav>
+
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn btn-sm" id="menuToggle" style="display:none" onclick="document.getElementById('sidebar').classList.toggle('active')"><i class="fa-solid fa-bars"></i></button>
+            <div class="search-box"><input type="text" placeholder="جستجو (نام، کد، قرارداد)..." onkeyup="filterTable(this.value)"><i class="fa-solid fa-magnifying-glass"></i></div>
+        </div>
+        <div class="user-profile">
+            <div style="text-align:left"><div class="user-name" id="displayUsername">کاربر</div><div class="user-role">مدیر سیستم</div></div>
+            <img src="https://picsum.photos/seed/admin/100/100" alt="Avatar" class="avatar">
+        </div>
+    </header>
+
+    <section class="filter-bar">
+        <div class="fb-group">
+            <label class="fb-title"><i class="fa-solid fa-layer-group" style="margin-left:4px"></i> نوع پروژه</label>
+            <div class="fb-radio" onchange="applyMainFilters()">
+                <label><input type="radio" name="mainType" value="" checked><span>همه</span></label>
+                <label><input type="radio" name="mainType" value="omrani"><span>عمرانی</span></label>
+                <label><input type="radio" name="mainType" value="jari"><span>جاری</span></label>
+            </div>
+        </div>
+        <div class="fb-sep">|</div>
+        <div class="fb-group">
+            <label class="fb-title"><i class="fa-regular fa-calendar" style="margin-left:4px"></i> بازه تاریخ (پروژه‌های فعال در این بازه)</label>
+            <div style="display:flex;gap:6px;align-items:center">
+                <input type="text" id="filterFromDate" class="form-control" style="width:130px" placeholder="از تاریخ" autocomplete="off">
+                <span class="fb-sep">—</span>
+                <input type="text" id="filterToDate" class="form-control" style="width:130px" placeholder="تا تاریخ" autocomplete="off">
+            </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="margin-bottom:2px" onclick="clearMainFilters()"><i class="fa-solid fa-eraser"></i> حذف فیلترها</button>
+        <div class="fb-info" id="filterInfo"></div>
+    </section>
+
+    <section class="stats-grid" id="statsGrid"></section>
+
+    <section class="charts-section">
+        <div class="sec-title"><i class="fa-solid fa-chart-pie" style="color:var(--pri)"></i> نمودارهای تحلیلی</div>
+        <div class="charts-grid">
+            <div class="chart-card"><h4><i class="fa-solid fa-chart-bar" style="margin-left:4px"></i> مقایسه پیشرفت فیزیکی و مالی</h4><canvas id="chartProgress"></canvas></div>
+            <div class="chart-card"><h4><i class="fa-solid fa-chart-pie" style="margin-left:4px"></i> توزیع بودجه و هزینه</h4><canvas id="chartBudget"></canvas></div>
+            <div class="chart-card"><h4><i class="fa-solid fa-circle-half-stroke" style="margin-left:4px"></i> وضعیت پروژه‌ها</h4><canvas id="chartStatus"></canvas></div>
+        </div>
+    </section>
+
+    <section class="table-container">
+        <div class="table-header">
+            <h3><i class="fa-solid fa-folder-open" style="color:var(--pri);margin-left:5px"></i> لیست پروژه‌ها</h3>
+            <div class="table-actions">
+                <button class="btn btn-primary btn-sm" onclick="openAnalyticsModal()"><i class="fa-solid fa-chart-line"></i> داشبورد تحلیلی</button>
+                <button class="btn btn-outline btn-sm" onclick="exportToExcel()"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button>
+                <button class="btn btn-outline btn-sm" onclick="downloadSampleExcel()"><i class="fa-solid fa-download"></i> شیت نمونه</button>
+                <button class="btn btn-outline btn-sm" onclick="document.getElementById('excelFileInput').click()"><i class="fa-solid fa-file-import"></i> ورودی اکسل</button>
+                <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()"><i class="fa-solid fa-plus"></i> پروژه جدید</button>
+            </div>
+        </div>
+        <input type="file" id="excelFileInput" class="hidden-input" accept=".xlsx,.xls,.csv" onchange="importFromExcel(event)">
+        <div class="table-wrapper">
+            <table id="projectsTable">
+                <thead><tr><th>نام پروژه</th><th>نوع</th><th>کد پروژه</th><th>شماره قرارداد</th><th>واحد اجرایی</th><th>تاریخ شروع</th><th>تاریخ پایان</th><th>وضعیت</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>بودجه (م.ر)</th><th>هزینه (م.ر)</th><th>انحراف</th><th>عملیات</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalProjectTitle">مدیریت پروژه</h3>
+            <div style="display:flex;align-items:center;gap:6px">
+                <button class="close-btn" onclick="printProject()" title="چاپ خلاصه پروژه"><i class="fa-solid fa-print"></i></button>
+                <button class="close-btn" id="maxToggle" onclick="toggleModalSize()" title="تغییر اندازه پنجره"><i class="fa-solid fa-compress"></i></button>
+                <button class="close-btn x-close" onclick="closeModal()" title="بستن"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="details" onclick="switchTab('details')">اطلاعات کلی</button>
+                <button class="tab-btn" data-tab="plan" onclick="switchTab('plan')">برنامه</button>
+                <button class="tab-btn" data-tab="performance" onclick="switchTab('performance')">عملکرد</button>
+                <button class="tab-btn" data-tab="contract" onclick="switchTab('contract')">قرارداد</button>
+                <button class="tab-btn" data-tab="letters" onclick="switchTab('letters')">مکاتبات</button>
+                <button class="tab-btn" data-tab="gantt" onclick="switchTab('gantt')">زمان‌بندی (Gantt)</button>
+            </div>
+
+            <div id="tab-details" class="tab-content active">
+                <div class="sec-divider"><i class="fa-solid fa-circle-info" style="color:var(--pri)"></i> مشخصات پروژه</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>نام پروژه *</label><input type="text" id="editProjectName" class="form-control"></div>
+                    <div class="form-group"><label>کد پروژه</label><input type="text" id="editProjectCode" class="form-control" placeholder="مثلاً: PRJ-1403-001"></div>
+                    <div class="form-group"><label>واحد اجرایی</label><input type="text" id="editProjectManager" class="form-control"></div>
+                    <div class="form-group"><label>وضعیت</label><select id="editProjectStatus" class="form-control"><option value="active">فعال</option><option value="pending">در انتظار</option><option value="hold">متوقف</option></select></div>
+                    <div class="form-group"><label>بودجه کل (م.ر)</label><input type="number" id="editProjectBudget" class="form-control" min="0"></div>
+                    <div class="form-group"><label>هزینه انجام‌شده (م.ر)</label><input type="number" id="editProjectSpent" class="form-control" min="0"></div>
+                    <div class="form-group"><label>درصد پیشرفت فیزیکی</label><input type="number" id="editProjectProgress" class="form-control" min="0" max="100"></div>
+                    <div class="form-group"><label>وزن</label><input type="number" id="editProjectWeight" class="form-control" min="0" step="0.01" placeholder="مثلاً: 100"></div>
+                    <div class="form-group"><label>نوع پروژه</label>
+                        <div class="radio-row">
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="projectType" id="ptOmrani" value="omrani" checked style="accent-color:var(--pri);width:17px;height:17px;cursor:pointer"> عمرانی</label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="projectType" id="ptJari" value="jari" style="accent-color:var(--pri);width:17px;height:17px;cursor:pointer"> جاری</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sec-divider"><i class="fa-regular fa-calendar" style="color:var(--pri)"></i> بازه زمانی پروژه</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>تاریخ شروع</label><input type="text" id="editProjectStart" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                    <div class="form-group"><label>تاریخ پایان</label><input type="text" id="editProjectEnd" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                </div>
+
+                <div class="sec-divider"><i class="fa-solid fa-memo" style="color:var(--pri)"></i> توضیحات</div>
+                <div class="add-task-section">
+                    <div class="form-grid">
+                        <div class="form-group"><label>تاریخ (شمسی)</label><input type="text" id="noteDate" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group" style="grid-column:1/-1"><label>توضیحات</label><input type="text" id="noteDesc" class="form-control" placeholder="توضیح مربوطه..." maxlength="1000"></div>
+                    </div>
+                    <div class="form-btns">
+                        <button class="btn btn-primary btn-sm" id="noteAddBtn" onclick="addNoteRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
+                        <button class="btn btn-outline btn-sm" id="noteCancelBtn" style="display:none" onclick="cancelNoteEdit()"><i class="fa-solid fa-xmark"></i> انصراف ویرایش</button>
+                    </div>
+                </div>
+                <div class="grid-box">
+                    <table class="task-list-mini" style="margin-top:0">
+                        <thead><tr><th style="width:130px">تاریخ</th><th>توضیحات</th><th style="width:110px">عملیات</th></tr></thead>
+                        <tbody id="notesGridBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="sec-divider"><i class="fa-solid fa-paperclip" style="color:var(--pri)"></i> مستندات و پیوست‌ها</div>
+                <div class="add-task-section">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <input type="file" id="docFileInput" class="hidden-input" multiple onchange="uploadDocFiles(this)">
+                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('docFileInput').click()"><i class="fa-solid fa-cloud-arrow-up"></i> بارگذاری فایل</button>
+                        <div class="loader" id="docLoader" style="border-top-color:var(--pri)"></div>
+                        <span style="font-size:.8rem;color:var(--gy)">چند فایل همزمان — حداکثر ۲۵ مگابایت — pdf، عکس، word، excel، zip، dwg و ...</span>
+                    </div>
+                </div>
+                <div class="grid-box">
+                    <table class="task-list-mini" style="margin-top:0">
+                        <thead><tr><th>نام فایل</th><th style="width:100px">حجم</th><th style="width:140px">تاریخ بارگذاری</th><th style="width:110px">عملیات</th></tr></thead>
+                        <tbody id="docsGridBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-plan" class="tab-content">
+                <div class="sec-divider"><i class="fa-solid fa-chart-line" style="color:var(--pri)"></i> دوره‌های پیشرفت برنامه</div>
+                <div class="add-task-section">
+                    <div class="form-grid">
+                        <div class="form-group"><label>از تاریخ (شمسی)</label><input type="text" id="prFromDate" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group"><label>تا تاریخ (شمسی)</label><input type="text" id="prToDate" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group"><label>موضوع</label><input type="text" id="prSubject" class="form-control" placeholder="مثلاً: گودبرداری"></div>
+                        <div class="form-group"><label>پیشرفت فیزیکی (%)</label><input type="number" id="prPhysical" class="form-control" min="0" max="100"></div>
+                        <div class="form-group"><label>پیشرفت مالی (%)</label><input type="number" id="prFinancial" class="form-control" min="0" max="100"></div>
+                        <div class="form-group"><label>وزن</label><input type="number" id="prWeight" class="form-control" min="0" step="0.01"></div>
+                        <div class="form-group"><label>بودجه (م.ر)</label><input type="number" id="prBudget" class="form-control" min="0"></div>
+                        <div class="form-group"><label>هزینه (م.ر)</label><input type="number" id="prSpent" class="form-control" min="0"></div>
+                    </div>
+                    <div class="form-btns">
+                        <button class="btn btn-primary btn-sm" id="prAddBtn" onclick="addProgressRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
+                        <button class="btn btn-outline btn-sm" id="prCancelBtn" style="display:none" onclick="cancelProgressEdit()"><i class="fa-solid fa-xmark"></i> انصراف ویرایش</button>
+                    </div>
+                </div>
+                <div class="grid-box" style="margin-bottom:0">
+                    <table class="task-list-mini" style="margin-top:0">
+                        <thead><tr><th>از تاریخ</th><th>تا تاریخ</th><th>موضوع</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>وزن</th><th>بودجه</th><th>هزینه</th><th>انحراف</th><th style="width:110px">عملیات</th></tr></thead>
+                        <tbody id="progressGridBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-performance" class="tab-content">
+                <div class="sec-divider"><i class="fa-solid fa-clipboard-check" style="color:var(--pri)"></i> عملکرد محقق‌شده</div>
+                <div class="add-task-section">
+                    <div class="form-grid">
+                        <div class="form-group"><label>تاریخ شروع (شمسی)</label><input type="text" id="pfFromDate" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group"><label>تا تاریخ (شمسی)</label><input type="text" id="pfToDate" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group"><label>موضوع</label><input type="text" id="pfSubject" class="form-control" placeholder="مثلاً: فاز اول اجرا"></div>
+                        <div class="form-group"><label>پیشرفت فیزیکی (%)</label><input type="number" id="pfPhysical" class="form-control" min="0" max="100"></div>
+                        <div class="form-group"><label>پیشرفت مالی (%)</label><input type="number" id="pfFinancial" class="form-control" min="0" max="100"></div>
+                        <div class="form-group"><label>وزن</label><input type="number" id="pfWeight" class="form-control" min="0" step="0.01"></div>
+                        <div class="form-group"><label>بودجه (م.ر)</label><input type="number" id="pfBudget" class="form-control" min="0"></div>
+                        <div class="form-group"><label>هزینه (م.ر)</label><input type="number" id="pfSpent" class="form-control" min="0"></div>
+                        <div class="form-group"><label>توضیحات</label><input type="text" id="pfDesc" class="form-control" placeholder="توضیح مربوطه..." maxlength="1000"></div>
+                    </div>
+                    <div class="form-btns">
+                        <button class="btn btn-success btn-sm" onclick="copyPlanToPerformance()" title="کپی ردیف‌های برنامه به عملکرد"><i class="fa-solid fa-copy"></i> کپی از برنامه</button>
+                        <button class="btn btn-primary btn-sm" id="pfAddBtn" onclick="addPerformanceRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
+                        <button class="btn btn-outline btn-sm" id="pfCancelBtn" style="display:none" onclick="cancelPerformanceEdit()"><i class="fa-solid fa-xmark"></i> انصراف ویرایش</button>
+                    </div>
+                </div>
+                <div class="grid-box" style="margin-bottom:0">
+                    <table class="task-list-mini" style="margin-top:0">
+                        <thead><tr><th>تاریخ شروع</th><th>تا تاریخ</th><th>موضوع</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>وزن</th><th>بودجه</th><th>هزینه</th><th>انحراف</th><th>توضیحات</th><th style="width:110px">عملیات</th></tr></thead>
+                        <tbody id="perfGridBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-contract" class="tab-content">
+                <div class="sec-divider"><i class="fa-solid fa-file-signature" style="color:var(--pri)"></i> اطلاعات قرارداد</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>شماره قرارداد</label><input type="text" id="editProjectContractNo" class="form-control" placeholder="مثلاً: CT-1024"></div>
+                    <div class="form-group"><label>تاریخ شروع قرارداد</label><input type="text" id="editProjectContractStart" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                    <div class="form-group"><label>تاریخ پایان قرارداد</label><input type="text" id="editProjectContractEnd" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                </div>
+            </div>
+
+            <div id="tab-letters" class="tab-content">
+                <div class="sec-divider"><i class="fa-solid fa-envelope-open-text" style="color:var(--pri)"></i> ثبت نامه</div>
+                <div class="add-task-section">
+                    <div class="form-grid">
+                        <div class="form-group"><label>شماره نامه</label><input type="text" id="ltrNo" class="form-control" placeholder="مثلاً: 1403/01/15-A-102"></div>
+                        <div class="form-group"><label>تاریخ نامه (شمسی)</label><input type="text" id="ltrDate" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group"><label>موضوع نامه</label><input type="text" id="ltrSubject" class="form-control" placeholder="مثلاً: ابلاغ شروع عملیات" maxlength="300"></div>
+                        <div class="form-group"><label>مخاطب نامه</label><input type="text" id="ltrRecipient" class="form-control" placeholder="مثلاً: شهرداری منطقه ۳" maxlength="200"></div>
+                        <div class="form-group"><label>نوع نامه</label>
+                            <div class="radio-row">
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="ltrType" id="ltrSadere" value="sadere" checked style="accent-color:var(--pri);width:17px;height:17px;cursor:pointer"> صادره</label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="ltrType" id="ltrVarede" value="varede" style="accent-color:var(--ok);width:17px;height:17px;cursor:pointer"> وارده</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-btns">
+                        <button class="btn btn-primary btn-sm" id="ltrAddBtn" onclick="addLetterRow()"><i class="fa-solid fa-plus"></i> افزودن نامه</button>
+                        <button class="btn btn-outline btn-sm" id="ltrCancelBtn" style="display:none" onclick="cancelLetterEdit()"><i class="fa-solid fa-xmark"></i> انصراف ویرایش</button>
+                    </div>
+                </div>
+                <div class="grid-box">
+                    <table class="task-list-mini" style="margin-top:0">
+                        <thead><tr><th style="width:90px">نوع</th><th style="width:160px">شماره نامه</th><th style="width:120px">تاریخ نامه</th><th>موضوع نامه</th><th>مخاطب نامه</th><th style="width:110px">عملیات</th></tr></thead>
+                        <tbody id="lettersGridBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-gantt" class="tab-content">
+                <div class="add-task-section">
+                    <h4><i class="fa-solid fa-plus-circle" style="color:var(--pri);margin-left:4px"></i> افزودن فعالیت</h4>
+                    <div class="form-grid">
+                        <div class="form-group"><label>عنوان فعالیت</label><input type="text" id="newTaskName" class="form-control" placeholder="مثلاً: گودبرداری"></div>
+                        <div class="form-group"><label>مسئول</label><input type="text" id="newTaskOwner" class="form-control"></div>
+                        <div class="form-group"><label>بودجه (م.ر)</label><input type="number" id="newTaskBudget" class="form-control" min="0" step="0.1"></div>
+                        <div class="form-group"><label>هزینه (م.ر)</label><input type="number" id="newTaskSpent" class="form-control" min="0" step="0.1"></div>
+                        <div class="form-group"><label>تاریخ شروع</label><input type="text" id="newTaskStart" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                        <div class="form-group"><label>تاریخ پایان</label><input type="text" id="newTaskEnd" class="form-control" placeholder="انتخاب تاریخ" autocomplete="off"></div>
+                    </div>
+                    <div class="form-btns">
+                        <button class="btn btn-primary btn-sm" id="taskAddBtn" onclick="addTaskToProject()"><i class="fa-solid fa-plus"></i> افزودن</button>
+                        <button class="btn btn-outline btn-sm" id="taskCancelBtn" style="display:none" onclick="cancelTaskEdit()"><i class="fa-solid fa-xmark"></i> انصراف ویرایش</button>
+                    </div>
+                </div>
+                <div class="gantt-container">
+                    <div class="gantt-header"><span id="ganttStartDate">---</span><span>تایم‌لاین</span><span id="ganttEndDate">---</span></div>
+                    <div class="gz-toolbar">
+                        <span class="gz-lbl"><i class="fa-solid fa-ruler-combined" style="margin-left:3px"></i> مقیاس:</span>
+                        <button class="gz-btn" data-gz="task" data-mode="daily" onclick="setGzMode('task','daily')">روزانه</button>
+                        <button class="gz-btn" data-gz="task" data-mode="weekly" onclick="setGzMode('task','weekly')">هفتگی</button>
+                        <button class="gz-btn" data-gz="task" data-mode="monthly" onclick="setGzMode('task','monthly')">ماهانه</button>
+                        <button class="gz-btn" data-gz="task" data-mode="yearly" onclick="setGzMode('task','yearly')">سالانه</button>
+                    </div>
+                    <div class="gz-scale" id="taskGzScale"></div>
+                    <div class="gantt-chart-wrapper"><div class="gantt-labels-col" id="ganttLabels"></div><div class="gantt-bars-col" id="ganttCanvas"></div></div>
+                </div>
+                <div style="margin-top:1.2rem">
+                    <h4 style="margin-bottom:6px;font-size:.92rem"><i class="fa-solid fa-list" style="color:var(--pri);margin-left:4px"></i> لیست فعالیت‌ها</h4>
+                    <table class="task-list-mini"><thead><tr><th>عنوان</th><th>مسئول</th><th>بودجه</th><th>هزینه</th><th>بازه زمانی</th><th style="width:110px">عملیات</th></tr></thead><tbody id="modalTaskListBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-danger btn-sm" id="deleteProjectBtn" style="display:none" onclick="deleteCurrentProject()"><i class="fa-solid fa-trash"></i> حذف پروژه</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-outline btn-sm" onclick="printProject()"><i class="fa-solid fa-print"></i> چاپ خلاصه</button>
+            <button class="btn btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+            <button class="btn btn-success btn-sm" onclick="saveProjectChanges()"><div class="loader" id="saveLoader"></div><span id="saveBtnText">ذخیره تغییرات</span></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="analyticsOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <h3><i class="fa-solid fa-chart-line" style="color:var(--pri);margin-left:5px"></i> داشبورد تحلیلی پروژه‌ها</h3>
+                <small id="anFilterNote" style="font-weight:400;color:var(--gy);font-size:.75rem"></small>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <button class="close-btn" onclick="renderAnalytics()" title="به‌روزرسانی نمودارها"><i class="fa-solid fa-rotate"></i></button>
+                <button class="close-btn x-close" onclick="closeAnalyticsModal()" title="بستن"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="sec-divider" style="margin-top:0"><i class="fa-solid fa-gauge" style="color:var(--pri)"></i> شاخص‌های کلیدی</div>
+            <div class="an-kpis" id="anKpis"></div>
+
+            <div class="sec-divider"><i class="fa-solid fa-chart-column" style="color:var(--pri)"></i> تحلیل پیشرفت و بودجه</div>
+            <div class="an-charts">
+                <div class="chart-card"><h4><i class="fa-solid fa-chart-bar" style="margin-left:4px"></i> پیشرفت فیزیکی و مالی هر پروژه (%)</h4><canvas id="anProgress"></canvas></div>
+                <div class="chart-card"><h4><i class="fa-solid fa-money-bill-wave" style="margin-left:4px"></i> بودجه و هزینه هر پروژه (م.ر)</h4><canvas id="anBudget"></canvas></div>
+            </div>
+            <div class="sec-divider"><i class="fa-solid fa-diagram-project" style="color:var(--pri)"></i> تحلیل ترکیب و ریسک</div>
+            <div class="an-charts">
+                <div class="chart-card"><h4><i class="fa-solid fa-circle-half-stroke" style="margin-left:4px"></i> وضعیت پروژه‌ها</h4><canvas id="anStatus"></canvas></div>
+                <div class="chart-card"><h4><i class="fa-solid fa-layer-group" style="margin-left:4px"></i> تعداد و بودجه بر اساس نوع پروژه</h4><canvas id="anType"></canvas></div>
+                <div class="chart-card"><h4><i class="fa-solid fa-ranking-star" style="margin-left:4px"></i> بزرگ‌ترین بودجه‌ها (م.ر)</h4><canvas id="anTop"></canvas></div>
+                <div class="chart-card"><h4><i class="fa-solid fa-triangle-exclamation" style="margin-left:4px"></i> انحراف مالی پروژه‌ها (٪)</h4><canvas id="anDev"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="reportOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-bars-staggered" style="color:var(--pri);margin-left:5px"></i> گزارش کنترل پروژه — پیشرفت فیزیکی (برنامه / عملکرد)</h3>
+            <div style="display:flex;align-items:center;gap:6px">
+                <button class="close-btn" onclick="exportControlReportXls()" title="خروجی اکسل رنگی (.xls — سه شیت)"><i class="fa-solid fa-file-excel" style="color:#1d6f42"></i></button>
+                <button class="close-btn" onclick="printReport()" title="چاپ گزارش"><i class="fa-solid fa-print"></i></button>
+                <button class="close-btn" onclick="renderReport()" title="به‌روزرسانی"><i class="fa-solid fa-rotate"></i></button>
+                <button class="close-btn x-close" onclick="closeReportModal()" title="بستن"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="rp-toolbar">
+                <div class="form-group" style="min-width:280px">
+                    <label><i class="fa-solid fa-filter" style="margin-left:4px"></i> فیلتر واحد اجرایی</label>
+                    <select id="rpManager" class="form-control" onchange="renderReport()"></select>
+                </div>
+                <span style="font-size:.8rem;color:var(--gy);padding-bottom:10px">پیشرفت هر پروژه = جمع درصد دوره‌های ثبت‌شده (سقف ۱۰۰) • میانگین‌ها وزنی است</span>
+            </div>
+
+            <div class="an-kpis" id="rpKpis"></div>
+
+            <div class="sec-divider"><i class="fa-solid fa-chart-area" style="color:var(--pri)"></i> نمودار S تجمعی (میانگین وزنی — ٪)</div>
+            <div class="chart-card" style="margin-bottom:1rem;height:240px"><canvas id="rpSCurve"></canvas></div>
+
+            <div class="sec-divider"><i class="fa-solid fa-bars-staggered" style="color:var(--pri)"></i> گانت پیشرفت فیزیکی هر پروژه</div>
+            <div class="rp-legend">
+                <span><b style="background:#e2e8f0"></b> بازه پروژه</span>
+                <span><b style="background:#4361ee"></b> دوره برنامه</span>
+                <span><b style="background:#2ecc71"></b> دوره عملکرد</span>
+                <span><b style="background:transparent;border-left:2px dashed var(--err);width:2px;height:12px;border-radius:0"></b> امروز</span>
+            </div>
+            <div class="gantt-container">
+                <div class="rp-head-dates"><span id="rpGStart">—</span><span id="rpGEnd">—</span></div>
+                <div class="gz-toolbar">
+                    <span class="gz-lbl"><i class="fa-solid fa-ruler-combined" style="margin-left:3px"></i> مقیاس:</span>
+                    <button class="gz-btn" data-gz="report" data-mode="daily" onclick="setGzMode('report','daily')">روزانه</button>
+                    <button class="gz-btn" data-gz="report" data-mode="weekly" onclick="setGzMode('report','weekly')">هفتگی</button>
+                    <button class="gz-btn" data-gz="report" data-mode="monthly" onclick="setGzMode('report','monthly')">ماهانه</button>
+                    <button class="gz-btn" data-gz="report" data-mode="yearly" onclick="setGzMode('report','yearly')">سالانه</button>
+                </div>
+                <div class="gz-scale" id="rpGzScale"></div>
+                <div class="rp-rows" id="rpGanttRows"></div>
+            </div>
+
+            <div class="sec-divider" style="margin-top:1rem"><i class="fa-solid fa-table-list" style="color:var(--pri)"></i> جدول خلاصه پیشرفت</div>
+            <div class="grid-box" style="max-height:320px">
+                <table class="task-list-mini" style="margin-top:0">
+                    <thead><tr><th>پروژه</th><th>واحد اجرایی</th><th>بازه پروژه</th><th>پیشرفت برنامه</th><th>پیشرفت عملکرد</th><th>انحراف</th><th>درصد ثبت‌شده</th><th>آخرین عملکرد</th></tr></thead>
+                    <tbody id="rpTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="printArea"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   بخش ۱: تبدیل تاریخ جلالی ↔ میلادی
+============================================================ */
+function jIsLeap(y){return[1,5,9,13,17,22,26,30].indexOf(y%33)!==-1}
+function jMLen(y,m){if(m<=6)return 31;if(m<=11)return 30;return jIsLeap(y)?30:29}
+function j2g(jy,jm,jd){
+    var d=0;
+    if(jy>=1400){for(var y=1400;y<jy;y++)d+=jIsLeap(y)?366:365}
+    else{for(var y=jy;y<1400;y++)d-=jIsLeap(y)?366:365}
+    for(var m=1;m<jm;m++)d+=jMLen(jy,m);d+=(jd-1);
+    var r=new Date(2021,2,21);r.setDate(r.getDate()+d);return[r.getFullYear(),r.getMonth()+1,r.getDate()];
+}
+function g2j(gy,gm,gd){
+    var t=new Date(gy,gm-1,gd),r=new Date(2021,2,21),d=Math.round((t-r)/864e5),jy=1400;
+    if(d>0){for(;;){var l=jIsLeap(jy)?366:365;if(d<l)break;d-=l;jy++}}
+    else{for(;;){jy--;var l=jIsLeap(jy)?366:365;d+=l;if(d>=0)break}}
+    var jm=1;for(;;){var ml=jMLen(jy,jm);if(d<ml)break;d-=ml;jm++}
+    return[jy,jm,d+1];
+}
+function pN(n){return String(n).replace(/\d/g,function(v){return'۰۱۲۳۴۵۶۷۸۹'[+v]})}
+function toPDate(s){
+    if(!s)return'—';
+    var m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(s)),y,mo,d;
+    if(m){y=+m[1];mo=+m[2];d=+m[3]}
+    else{var dt=new Date(s);if(isNaN(dt))return'—';y=dt.getFullYear();mo=dt.getMonth()+1;d=dt.getDate()}
+    var j=g2j(y,mo,d);
+    return pN(j[0])+'/'+pN(String(j[1]).padStart(2,'0'))+'/'+pN(String(j[2]).padStart(2,'0'));
+}
+function todayP(){var n=new Date(),t=g2j(n.getFullYear(),n.getMonth()+1,n.getDate());return pN(t[0])+'/'+pN(String(t[1]).padStart(2,'0'))+'/'+pN(String(t[2]).padStart(2,'0'))}
+function shamsiToGreg(str){
+    if(!str)return null;
+    var c=String(str).replace(/[۰-۹]/g,function(x){return x.charCodeAt(0)-0x06F0}),p=c.split(/[\/\-]/);
+    if(p.length<3)return null;
+    var jy=+p[0],jm=+p[1],jd=+p[2];
+    if(jy<1300||jy>1500||jm<1||jm>12||jd<1||jd>31)return null;
+    var g=j2g(jy,jm,jd);return g[0]+'-'+String(g[1]).padStart(2,'0')+'-'+String(g[2]).padStart(2,'0');
+}
+
+/* ============================================================
+   بخش ۲: تقویم شمسی (ShamsiPK)
+============================================================ */
+var SP_M=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+var SP_W=['ش','ی','د','س','چ','پ','ج'];
+var allPK=[];
+function ShamsiPK(inp,opts){
+    opts=opts||{};var s=this;s.inp=inp;s.onSel=opts.onSelect||null;s.wrap=null;s.xBtn=null;s.drop=null;s.open_=false;s.gVal='';s.sel=null;
+    var n=new Date(),tj=g2j(n.getFullYear(),n.getMonth()+1,n.getDate());s.td={y:tj[0],m:tj[1],d:tj[2]};s.vY=tj[0];s.vM=tj[1];
+    var par=inp.parentNode,w=document.createElement('div');w.className='shamsi-wrap';par.insertBefore(w,inp);w.appendChild(inp);s.wrap=w;inp.readOnly=true;inp.style.cursor='pointer';
+    var ci=document.createElement('i');ci.className='fa-regular fa-calendar shamsi-ico';w.appendChild(ci);
+    var cl=document.createElement('i');cl.className='fa-solid fa-circle-xmark shamsi-x';w.appendChild(cl);s.xBtn=cl;
+    w.addEventListener('mousedown',function(e){if(e.target===cl||cl.contains(e.target))return;e.preventDefault();e.stopPropagation();s.open()});
+    w.addEventListener('click',function(e){if(e.target===cl||cl.contains(e.target))return;e.preventDefault();e.stopPropagation()});
+    cl.addEventListener('mousedown',function(e){e.preventDefault();e.stopPropagation()});
+    cl.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();s.clear()});
+    var dr=document.createElement('div');dr.className='shamsi-picker';dr.style.display='none';document.body.appendChild(dr);s.drop=dr;
+    dr.addEventListener('mousedown',function(e){e.stopPropagation()});allPK.push(s);
+}
+ShamsiPK.prototype.open=function(){
+    var s=this;
+    if(s.open_){s.close();return}
+    allPK.forEach(function(p){if(p!==s)p.close()});
+    s.render();
+    var r=s.inp.getBoundingClientRect(),d=s.drop;
+    d.style.display='block';d.style.visibility='hidden';
+    var dw=d.offsetWidth,dh=d.offsetHeight;
+    var top=r.bottom+6;
+    if(top+dh>window.innerHeight-8)top=Math.max(8,r.top-dh-6);
+    var right=window.innerWidth-r.right;
+    right=Math.min(Math.max(right,8),Math.max(8,window.innerWidth-dw-8));
+    d.style.top=top+'px';d.style.right=right+'px';
+    d.style.visibility='visible';
+    s.open_=true;s.wrap.classList.add('pk-open');
+};
+ShamsiPK.prototype.close=function(){
+    this.drop.style.display='none';this.open_=false;this.wrap.classList.remove('pk-open');
+};
+ShamsiPK.prototype.clear=function(){
+    var s=this;s.inp.value='';s.gVal='';s.sel=null;s.xBtn.style.display='none';
+    if(s.onSel)s.onSel('');
+    s.close();
+};
+ShamsiPK.prototype.setDate=function(g){
+    var s=this;
+    if(!g){s.clear();return}
+    var m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(g));
+    if(!m){s.clear();return}
+    var j=g2j(+m[1],+m[2],+m[3]);
+    s.sel={y:j[0],m:j[1],d:j[2]};s.vY=j[0];s.vM=j[1];
+    s.gVal=(+m[1])+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+    s.inp.value=pN(j[0])+'/'+pN(String(j[1]).padStart(2,'0'))+'/'+pN(String(j[2]).padStart(2,'0'));
+    s.xBtn.style.display='block';
+};
+ShamsiPK.prototype.pickAt=function(y,m,d){
+    var s=this,g=j2g(y,m,d);
+    s.sel={y:y,m:m,d:d};s.vY=y;s.vM=m;
+    s.gVal=g[0]+'-'+String(g[1]).padStart(2,'0')+'-'+String(g[2]).padStart(2,'0');
+    s.inp.value=pN(y)+'/'+pN(String(m).padStart(2,'0'))+'/'+pN(String(d).padStart(2,'0'));
+    s.xBtn.style.display='block';
+    s.close();
+    if(s.onSel)s.onSel(s.gVal);
+};
+ShamsiPK.prototype.pick=function(d){this.pickAt(this.vY,this.vM,d)};
+ShamsiPK.prototype.render=function(){
+    var s=this,y=s.vY,m=s.vM,d=s.drop;
+    var g1=j2g(y,m,1);
+    var startCol=(new Date(g1[0],g1[1]-1,g1[2]).getDay()+1)%7;
+    var ml=jMLen(y,m),h='';
+    h+='<div class="sp-hd"><div class="sp-ct">'+
+       '<button class="sp-yb" data-act="yprev">«</button>'+
+       '<button class="sp-nv" data-act="mprev">‹</button>'+
+       '<span class="sp-tt">'+SP_M[m-1]+' '+pN(y)+'</span>'+
+       '<button class="sp-nv" data-act="mnext">›</button>'+
+       '<button class="sp-yb" data-act="ynext">»</button></div></div>';
+    h+='<div class="sp-wk">';
+    SP_W.forEach(function(w,i){h+='<div class="sp-wc'+(i===6?' fr':'')+'">'+w+'</div>'});
+    h+='</div><div class="sp-dy">';
+    for(var i=0;i<startCol;i++)h+='<div class="sp-d off">·</div>';
+    for(var dd=1;dd<=ml;dd++){
+        var cls='sp-d';
+        if((startCol+dd-1)%7===6)cls+=' fr';
+        if(s.td.y===y&&s.td.m===m&&s.td.d===dd)cls+=' td';
+        if(s.sel&&s.sel.y===y&&s.sel.m===m&&s.sel.d===dd)cls+=' sl';
+        h+='<div class="'+cls+'" data-d="'+dd+'">'+pN(dd)+'</div>';
+    }
+    var rem=(7-((startCol+ml)%7))%7;
+    for(i=0;i<rem;i++)h+='<div class="sp-d off">·</div>';
+    h+='</div><div class="sp-ft">'+
+       '<button class="sp-tb" data-act="today">امروز</button>'+
+       '<button class="sp-tb" data-act="clr">پاک کردن</button></div>';
+    d.innerHTML=h;
+    d.onclick=function(e){
+        var t=e.target.closest('[data-act],[data-d]');
+        if(!t)return;
+        e.preventDefault();
+        if(t.dataset.d){s.pick(+t.dataset.d);return}
+        var a=t.dataset.act;
+        if(a==='mprev'){s.vM--;if(s.vM<1){s.vM=12;s.vY--}s.render()}
+        else if(a==='mnext'){s.vM++;if(s.vM>12){s.vM=1;s.vY++}s.render()}
+        else if(a==='yprev'){s.vY--;s.render()}
+        else if(a==='ynext'){s.vY++;s.render()}
+        else if(a==='today')s.pickAt(s.td.y,s.td.m,s.td.d);
+        else if(a==='clr')s.clear();
+    };
+};
+document.addEventListener('mousedown',function(e){
+    allPK.forEach(function(p){
+        if(!p.open_)return;
+        if(p.drop.contains(e.target)||p.wrap.contains(e.target))return;
+        p.close();
+    });
+});
+
+/* ============================================================
+   بخش ۳: وضعیت کلی و ابزارها
+============================================================ */
+var TOKEN_KEY='shargh_prj_token';
+var token=localStorage.getItem(TOKEN_KEY)||'';
+var currentUser=null;
+var allProjects=[];
+var currentProject=null;
+var charts={};
+var editIdx={note:null,prog:null,perf:null,ltr:null,task:null};
+var PAL=['#4361ee','#2ecc71','#f39c12','#e74c3c','#9b59b6','#1abc9c','#f1c40f','#34495e'];
+/* مقیاس گانت‌ها: روزانه/هفتگی/ماهانه/سالانه — پیش‌فرض ماهانه */
+var gzModes={task:'monthly',report:'monthly'};
+var rpLastList=[];
+
+var FORM={
+    note:{add:'noteAddBtn',cancel:'noteCancelBtn',label:'<i class="fa-solid fa-plus"></i> افزودن ردیف'},
+    prog:{add:'prAddBtn',cancel:'prCancelBtn',label:'<i class="fa-solid fa-plus"></i> افزودن ردیف'},
+    perf:{add:'pfAddBtn',cancel:'pfCancelBtn',label:'<i class="fa-solid fa-plus"></i> افزودن ردیف'},
+    ltr:{add:'ltrAddBtn',cancel:'ltrCancelBtn',label:'<i class="fa-solid fa-plus"></i> افزودن نامه'},
+    task:{add:'taskAddBtn',cancel:'taskCancelBtn',label:'<i class="fa-solid fa-plus"></i> افزودن'}
+};
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function val(id){var e=$(id);return e?e.value.trim():''}
+function num(id){var v=parseFloat(val(id));return isNaN(v)?0:v}
+function clamp100(v){return Math.max(0,Math.min(100,v||0))}
+function round1(n){return Math.round((n||0)*10)/10}
+function fmtMoney(n){return Number(n||0).toLocaleString('fa-IR',{maximumFractionDigits:1})}
+function pPct(n){return pN(Math.round(n||0))+'٪'}
+function statusFa(st){return{active:'فعال',pending:'در انتظار',hold:'متوقف'}[st]||st}
+function typeFa(t){return{omrani:'عمرانی',jari:'جاری'}[t]||t}
+function deep(o){return JSON.parse(JSON.stringify(o))}
+function sum(arr,k){return arr.reduce(function(a,x){return a+(+x[k]||0)},0)}
+function avg(arr,k){return arr.length?sum(arr,k)/arr.length:0}
+function shortName(n){n=String(n||'');return n.length>18?n.slice(0,18)+'…':n}
+function emptyRow(span,msg){
+    return'<tr><td colspan="'+span+'" style="text-align:center;color:var(--gy);padding:1rem">'+msg+'</td></tr>';
+}
+function todayIso(){
+    var n=new Date();
+    return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+
+function initPickers(){
+    var plain=['editProjectStart','editProjectEnd','noteDate','prFromDate','prToDate',
+     'pfFromDate','pfToDate','editProjectContractStart','editProjectContractEnd',
+     'ltrDate','newTaskStart','newTaskEnd'];
+    var filterIds=['filterFromDate','filterToDate'];
+    plain.concat(filterIds).forEach(function(id){
+        var el=$(id);
+        if(el&&!el._pk){
+            el._pk=new ShamsiPK(el, filterIds.indexOf(id)>-1?{onSelect:function(){applyMainFilters()}}:null);
+        }
+    });
+}
+function getG(id){var e=$(id);if(!e)return'';if(e._pk&&e._pk.gVal)return e._pk.gVal;return shamsiToGreg(e.value)||''}
+function setG(id,g){var e=$(id);if(!e)return;if(e._pk)e._pk.setDate(g||'');else e.value=g?toPDate(g):''}
+function clearDate(id){var e=$(id);e.value='';if(e._pk)e._pk.gVal=''}
+
+async function api(path,opts){
+    opts=opts||{};
+    var headers={'Authorization':'Bearer '+token};
+    if(!(opts.body instanceof FormData))headers['Content-Type']='application/json';
+    var res=await fetch('/api'+path,Object.assign({},opts,{headers:Object.assign(headers,opts.headers||{})}));
+    var data={};
+    try{data=await res.json()}catch(e){}
+    if(res.status===401){doLogout(true);throw new Error(data.error||'نشست منقضی شده است')}
+    if(!res.ok)throw new Error(data.error||('خطای سرور '+res.status));
+    return data;
+}
+
+var toastTimer=null;
+function showToast(msg,type){
+    var t=$('toast');
+    t.textContent=msg;
+    t.style.background=type==='err'?'var(--err)':(type==='wrn'?'#d97706':'var(--dk)');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){t.classList.remove('show')},3200);
+}
+
+/* ============================================================
+   بخش ۴: ورود / خروج / بارگذاری + فیلترهای صفحه اصلی
+============================================================ */
+async function handleLogin(){
+    var u=val('usernameInput'),p=$('passwordInput').value,err=$('loginErr');
+    err.textContent='';
+    if(!u||!p){err.textContent='نام کاربری و رمز عبور را وارد کنید';return}
+    var btn=$('loginBtn');
+    btn.disabled=true;btn.textContent='در حال ورود...';
+    try{
+        var res=await fetch('/api/auth/login',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username:u,password:p})
+        });
+        var data=await res.json();
+        if(!res.ok)throw new Error(data.error||'خطا در ورود');
+        token=data.token;currentUser=data.user;
+        localStorage.setItem(TOKEN_KEY,token);
+        enterApp();
+    }catch(ex){err.textContent=ex.message}
+    finally{btn.disabled=false;btn.innerHTML='ورود به داشبورد'}
+}
+function doLogout(silent){
+    localStorage.removeItem(TOKEN_KEY);
+    token='';currentUser=null;
+    if(silent){showLogin();return}
+    location.reload();
+}
+function showLogin(){$('loginScreen').style.display='flex';$('mainContent').classList.remove('active')}
+function enterApp(){
+    $('loginScreen').style.display='none';
+    $('mainContent').classList.add('active');
+    if(currentUser){
+        $('displayUsername').textContent=currentUser.fullName||currentUser.username;
+        document.querySelector('.user-role').textContent=currentUser.role==='admin'?'مدیر سیستم':'کاربر';
+    }
+    loadAll().catch(function(e){showToast(e.message,'err')});
+}
+async function loadAll(){
+    allProjects=await api('/projects');
+    applyMainFilters();
+}
+
+function mainTypeFilter(){
+    var r=document.querySelector('input[name="mainType"]:checked');
+    return r?r.value:'';
+}
+function inDateRange(p,from,to){
+    var ps=p.start_date||'',pe=p.end_date||'';
+    if(!ps&&!pe)return false;
+    var effStart=ps||pe, effEnd=pe||ps;
+    if(from&&effEnd<from)return false;
+    if(to&&effStart>to)return false;
+    return true;
+}
+function filteredProjects(){
+    var t=mainTypeFilter();
+    var from=getG('filterFromDate'),to=getG('filterToDate');
+    return allProjects.filter(function(p){
+        if(t&&p.project_type!==t)return false;
+        if((from||to)&&!inDateRange(p,from,to))return false;
+        return true;
+    });
+}
+function computeStats(list){
+    var c={active:0,pending:0,hold:0},tb=0,ts=0,ap=0,af=0;
+    list.forEach(function(p){
+        if(c[p.status]!=null)c[p.status]++;
+        tb+=(+p.total_cost||0);ts+=(+p.spent_cost||0);
+        ap+=(+p.progress_percent||0);
+        af+=p.total_cost>0?(p.spent_cost*100/p.total_cost):0;
+    });
+    var n=list.length;
+    return{total:n,active:c.active,pending:c.pending,hold:c.hold,
+        totalBudget:tb,totalSpent:ts,
+        avgPhysical:n?Math.round(ap/n):0,
+        avgFinancial:n?Math.round(af/n):0,
+        totalDeviation:tb>0?Math.round((ts-tb)/tb*100):0};
+}
+function renderStats(list){
+    var s=computeStats(list);
+    var cards=[
+        {i:'fa-layer-group',c:'bg-b',t:'کل پروژه‌ها',v:pN(s.total)},
+        {i:'fa-circle-play',c:'bg-g',t:'فعال',v:pN(s.active)},
+        {i:'fa-clock',c:'bg-o',t:'در انتظار',v:pN(s.pending)},
+        {i:'fa-circle-pause',c:'bg-r',t:'متوقف',v:pN(s.hold)},
+        {i:'fa-coins',c:'bg-b',t:'کل بودجه (م.ر)',v:fmtMoney(s.totalBudget)},
+        {i:'fa-money-bill-tower-up',c:'bg-o',t:'کل هزینه (م.ر)',v:fmtMoney(s.totalSpent)},
+        {i:'fa-chart-line',c:'bg-g',t:'میانگین پیشرفت فیزیکی',v:pPct(s.avgPhysical)},
+        {i:'fa-sack-dollar',c:'bg-b',t:'میانگین پیشرفت مالی',v:pPct(s.avgFinancial)},
+        {i:'fa-arrows-up-down',c:s.totalDeviation>0?'bg-r':'bg-g',t:'انحراف بودجه',v:pN(s.totalDeviation)+'٪'}
+    ];
+    $('statsGrid').innerHTML=cards.map(function(x){
+        return'<div class="card"><div class="card-icon '+x.c+'"><i class="fa-solid '+x.i+'"></i></div>'+
+              '<div class="card-info"><h3>'+x.t+'</h3><p>'+x.v+'</p></div></div>';
+    }).join('');
+}
+function applyMainFilters(){
+    var fl=filteredProjects();
+    renderTable(fl);
+    renderStats(fl);
+    renderMainCharts(fl);
+    var t=mainTypeFilter(),from=getG('filterFromDate'),to=getG('filterToDate'),parts=[];
+    if(t)parts.push('نوع: '+(t==='omrani'?'عمرانی':'جاری'));
+    if(from)parts.push('از '+toPDate(from));
+    if(to)parts.push('تا '+toPDate(to));
+    $('filterInfo').innerHTML=parts.length
+        ?'<i class="fa-solid fa-filter" style="margin-left:4px;color:var(--pri)"></i>نمایش <b>'+pN(fl.length)+'</b> از '+pN(allProjects.length)+' پروژه ('+parts.join(' • ')+')'
+        :'نمایش همه '+pN(allProjects.length)+' پروژه';
+}
+function clearMainFilters(){
+    document.querySelectorAll('input[name="mainType"]').forEach(function(r){r.checked=r.value===''});
+    clearDate('filterFromDate');clearDate('filterToDate');
+    applyMainFilters();
+}
+
+/* ============================================================
+   بخش ۵: جدول پروژه‌ها
+============================================================ */
+function progressCell(p){
+    var v=Math.max(0,Math.min(100,Math.round(p||0)));
+    return'<span class="prog-bg"><span class="prog-fill" style="width:'+v+'%"></span></span>'+
+          '<span class="prog-lbl">'+pN(v)+'٪</span>';
+}
+function devCell(dev){
+    if(Math.abs(dev)<0.5)return'<span style="color:var(--gy)">'+pN(0)+'</span>';
+    var bad=dev>0;
+    return'<span style="color:'+(bad?'var(--err)':'var(--ok)')+';font-weight:600">'+
+          (bad?'+':'−')+pN(Math.abs(round1(dev)))+'٪</span>';
+}
+function devCellProg(dev){
+    if(Math.abs(dev)<0.5)return'<span style="color:var(--gy)">'+pN(0)+'</span>';
+    var late=dev<0;
+    return'<span style="color:'+(late?'var(--err)':'var(--ok)')+';font-weight:600">'+
+          (late?'−':'+')+pN(Math.abs(round1(dev)))+'٪</span>';
+}
+function tableRow(p){
+    var fin=p.total_cost>0?(p.spent_cost*100/p.total_cost):0;
+    var dev=round1(fin-(p.progress_percent||0));
+    var b={active:'badge-active',pending:'badge-pending',hold:'badge-hold'}[p.status]||'badge-hold';
+    return'<tr>'+
+        '<td><strong>'+esc(p.name)+'</strong></td>'+
+        '<td>'+typeFa(p.project_type)+'</td>'+
+        '<td><span class="code-cell">'+(esc(p.project_code)||'—')+'</span></td>'+
+        '<td><span class="code-cell">'+(esc(p.contract_number)||'—')+'</span></td>'+
+        '<td>'+(esc(p.manager)||'—')+'</td>'+
+        '<td>'+toPDate(p.start_date)+'</td>'+
+        '<td>'+toPDate(p.end_date)+'</td>'+
+        '<td><span class="badge '+b+'">'+statusFa(p.status)+'</span></td>'+
+        '<td>'+progressCell(p.progress_percent)+'</td>'+
+        '<td>'+progressCell(fin)+'</td>'+
+        '<td>'+fmtMoney(p.total_cost)+'</td>'+
+        '<td>'+fmtMoney(p.spent_cost)+'</td>'+
+        '<td>'+devCell(dev)+'</td>'+
+        '<td style="white-space:nowrap">'+
+          '<button class="btn btn-outline btn-sm" onclick="openProjectModal('+p.id+')" title="مدیریت"><i class="fa-solid fa-pen"></i></button> '+
+          '<button class="btn btn-outline btn-sm" onclick="quickDelete('+p.id+')" title="حذف"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button>'+
+        '</td></tr>';
+}
+function renderTable(list){
+    list=list||filteredProjects();
+    document.querySelector('#projectsTable tbody').innerHTML=
+        list.length?list.map(tableRow).join(''):
+        emptyRow(14,'پروژه‌ای با این فیلترها یافت نشد');
+}
+function filterTable(q){
+    q=(q||'').trim().toLowerCase();
+    document.querySelectorAll('#projectsTable tbody tr').forEach(function(tr){
+        tr.style.display=(!q||tr.innerText.toLowerCase().indexOf(q)!==-1)?'':'none';
+    });
+}
+async function quickDelete(id){
+    var p=allProjects.find(function(x){return x.id===id});
+    if(!p||!confirm('پروژه «'+p.name+'» و تمام داده‌های آن حذف شود؟'))return;
+    try{
+        allProjects=await api('/projects/'+id,{method:'DELETE'});
+        applyMainFilters();
+        showToast('پروژه حذف شد');
+    }catch(e){showToast(e.message,'err')}
+}
+function toggleSidebar(){
+    if(window.innerWidth<=768)$('sidebar').classList.toggle('active');
+    else document.body.classList.toggle('sb-collapsed');
+}
+
+/* ============================================================
+   بخش ۶: نمودارهای اصلی
+============================================================ */
+function mkChart(id,cfg){
+    if(!window.Chart||!$(id))return;
+    if(charts[id]){charts[id].destroy();delete charts[id]}
+    Chart.defaults.font.family='Vazirmatn';
+    charts[id]=new Chart($(id),cfg);
+}
+function baseBarOpts(){
+    return{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{rtl:true}},scales:{y:{beginAtZero:true}}};
+}
+function renderMainCharts(list){
+    list=list||filteredProjects();
+    if(!window.Chart)return;
+    var names=list.map(function(p){return shortName(p.name)});
+    var fins=list.map(function(p){return p.total_cost>0?round1(p.spent_cost*100/p.total_cost):0});
+    mkChart('chartProgress',{type:'bar',data:{labels:names,datasets:[
+        {label:'پیشرفت فیزیکی',data:list.map(function(p){return p.progress_percent}),backgroundColor:'#4361ee',borderRadius:4},
+        {label:'پیشرفت مالی',data:fins,backgroundColor:'#2ecc71',borderRadius:4}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{rtl:true}},scales:{y:{beginAtZero:true,max:100}}}});
+    var tb=sum(list,'total_cost'),ts=sum(list,'spent_cost');
+    mkChart('chartBudget',{type:'doughnut',
+        data:{labels:['هزینه‌شده','باقی‌مانده'],datasets:[{data:[ts,Math.max(0,tb-ts)],backgroundColor:['#e74c3c','#94a3b8'],borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',rtl:true}}}});
+    var c={active:0,pending:0,hold:0};
+    list.forEach(function(p){if(c[p.status]!=null)c[p.status]++});
+    mkChart('chartStatus',{type:'doughnut',
+        data:{labels:['فعال','در انتظار','متوقف'],datasets:[{data:[c.active,c.pending,c.hold],backgroundColor:['#2ecc71','#f1c40f','#94a3b8'],borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',rtl:true}}}});
+}
+
+/* ============================================================
+   بخش ۷: مودال پروژه
+============================================================ */
+function openProjectModal(id){
+    var p=allProjects.find(function(x){return x.id===id});
+    if(!p)return;
+    currentProject=deep(p);
+    fillModal();
+    $('modalProjectTitle').textContent='مدیریت پروژه: '+p.name;
+    $('deleteProjectBtn').style.display='';
+    $('modalOverlay').classList.add('open');
+    switchTab('details');
+}
+function openNewProjectModal(){
+    currentProject={id:null,name:'',manager:'',status:'active',project_type:'omrani',
+        start_date:'',end_date:'',project_code:'',contract_number:'',weight:0,
+        contract_start_date:'',contract_end_date:'',total_cost:0,spent_cost:0,progress_percent:0,
+        tasks:[],progress_records:[],performance_records:[],letters:[],notes:[],documents:[]};
+    fillModal();
+    $('modalProjectTitle').textContent='پروژه جدید';
+    $('deleteProjectBtn').style.display='none';
+    $('modalOverlay').classList.add('open');
+    switchTab('details');
+}
+function closeModal(){$('modalOverlay').classList.remove('open');currentProject=null}
+function toggleModalSize(){
+    var m=document.querySelector('#modalOverlay .modal');
+    m.classList.toggle('normal-size');
+    $('maxToggle').querySelector('i').className=
+        m.classList.contains('normal-size')?'fa-solid fa-expand':'fa-solid fa-compress';
+}
+function switchTab(name){
+    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab===name)});
+    document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+name)});
+    if(name==='gantt')renderGantt();
+}
+function setEditState(key,on){
+    editIdx[key]=on;
+    $(FORM[key].cancel).style.display=on!==null?'':'none';
+    $(FORM[key].add).innerHTML=on!==null?'<i class="fa-solid fa-floppy-disk"></i> به‌روزرسانی':FORM[key].label;
+}
+function resetEditState(key){if(editIdx[key]!==null)setEditState(key,null)}
+function resetAllEditStates(){Object.keys(FORM).forEach(resetEditState)}
+function rowBtnsPlain(ef,i,df){
+    return'<button class="btn btn-outline btn-sm" onclick="'+ef+'('+i+')"><i class="fa-solid fa-pen"></i></button> '+
+          '<button class="btn btn-outline btn-sm" onclick="'+df+'('+i+')"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button>';
+}
+function fillModal(){
+    var p=currentProject;
+    $('editProjectName').value=p.name||'';
+    $('editProjectCode').value=p.project_code||'';
+    $('editProjectManager').value=p.manager||'';
+    $('editProjectStatus').value=p.status||'active';
+    $('editProjectBudget').value=p.total_cost||'';
+    $('editProjectSpent').value=p.spent_cost||'';
+    $('editProjectProgress').value=(p.progress_percent==null?'':p.progress_percent);
+    $('editProjectWeight').value=p.weight||'';
+    $('ptOmrani').checked=p.project_type!=='jari';
+    $('ptJari').checked=p.project_type==='jari';
+    setG('editProjectStart',p.start_date);
+    setG('editProjectEnd',p.end_date);
+    $('editProjectContractNo').value=p.contract_number||'';
+    setG('editProjectContractStart',p.contract_start_date);
+    setG('editProjectContractEnd',p.contract_end_date);
+    renderNotesGrid();renderDocsGrid();renderProgressGrid();renderPerfGrid();renderLettersGrid();
+    resetAllEditStates();
+}
+
+/* ---------- یادداشت‌ها ---------- */
+function renderNotesGrid(){
+    var arr=(currentProject.notes||[]).map(function(n,i){return{n:n,i:i}})
+        .sort(function(a,b){return a.n.date<b.n.date?1:-1});
+    $('notesGridBody').innerHTML=arr.length?arr.map(function(o){
+        return'<tr><td>'+toPDate(o.n.date)+'</td><td>'+esc(o.n.description)+'</td>'+
+              '<td>'+rowBtnsPlain('editNote',o.i,'delNote')+'</td></tr>';
+    }).join(''):emptyRow(3,'یادداشتی ثبت نشده است');
+}
+function addNoteRow(){
+    var d=getG('noteDate'),t=val('noteDesc');
+    if(!d){showToast('تاریخ یادداشت را انتخاب کنید','err');return}
+    if(!t){showToast('متن توضیحات خالی است','err');return}
+    if(editIdx.note!==null){
+        currentProject.notes[editIdx.note]={id:currentProject.notes[editIdx.note].id,date:d,description:t};
+        showToast('یادداشت به‌روزرسانی شد');
+    }else currentProject.notes.push({id:null,date:d,description:t});
+    resetEditState('note');clearDate('noteDate');$('noteDesc').value='';
+    renderNotesGrid();
+}
+function editNote(i){
+    var n=currentProject.notes[i];if(!n)return;
+    setG('noteDate',n.date);$('noteDesc').value=n.description;
+    setEditState('note',i);
+}
+function cancelNoteEdit(){clearDate('noteDate');$('noteDesc').value='';resetEditState('note')}
+function delNote(i){
+    if(!confirm('این یادداشت حذف شود؟'))return;
+    currentProject.notes.splice(i,1);
+    if(editIdx.note===i)cancelNoteEdit();
+    renderNotesGrid();
+}
+
+/* ---------- مستندات ---------- */
+function fmtSize(b){
+    if(!b)return'—';
+    var u=['بایت','کیلوبایت','مگابایت','گیگابایت'],i=0,n=b;
+    while(n>=1024&&i<u.length-1){n/=1024;i++}
+    return pN(round1(n))+' '+u[i];
+}
+function renderDocsGrid(){
+    var arr=currentProject.documents||[];
+    $('docsGridBody').innerHTML=arr.length?arr.map(function(d){
+        return'<tr><td><i class="fa-regular fa-file" style="margin-left:5px;color:var(--gy)"></i>'+esc(d.orig_name)+'</td>'+
+              '<td>'+fmtSize(d.file_size)+'</td><td>'+toPDate((d.uploaded_at||'').slice(0,10))+'</td>'+
+              '<td><button class="btn btn-outline btn-sm" onclick="downloadDoc('+d.id+')"><i class="fa-solid fa-download"></i></button> '+
+              '<button class="btn btn-outline btn-sm" onclick="deleteDoc('+d.id+')"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button></td></tr>';
+    }).join(''):emptyRow(4,'فایلی بارگذاری نشده است');
+}
+async function uploadDocFiles(input){
+    if(!currentProject||!currentProject.id){
+        showToast('برای بارگذاری فایل، ابتدا پروژه را ذخیره کنید','wrn');
+        input.value='';return;
+    }
+    if(!input.files.length)return;
+    var fd=new FormData();
+    for(var i=0;i<input.files.length;i++)fd.append('files',input.files[i]);
+    $('docLoader').style.display='inline-block';
+    try{
+        var out=await api('/projects/'+currentProject.id+'/documents',{method:'POST',body:fd});
+        currentProject.documents=out.documents||[];
+        var idx=allProjects.findIndex(function(x){return x.id===currentProject.id});
+        if(idx>-1)allProjects[idx].documents=currentProject.documents;
+        renderDocsGrid();
+        showToast(out.warning||(input.files.length+' فایل بارگذاری شد'),out.warning?'wrn':'ok');
+    }catch(e){showToast(e.message,'err')}
+    finally{$('docLoader').style.display='none';input.value=''}
+}
+async function deleteDoc(did){
+    if(!confirm('این فایل حذف شود؟'))return;
+    try{
+        await api('/documents/'+did,{method:'DELETE'});
+        currentProject.documents=(currentProject.documents||[]).filter(function(d){return d.id!==did});
+        renderDocsGrid();showToast('فایل حذف شد');
+    }catch(e){showToast(e.message,'err')}
+}
+async function downloadDoc(did){
+    try{
+        var res=await fetch('/api/documents/'+did,{headers:{'Authorization':'Bearer '+token}});
+        if(!res.ok)throw new Error('دانلود ناموفق بود');
+        var blob=await res.blob();
+        var meta=(currentProject.documents||[]).find(function(d){return d.id===did});
+        var a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=(meta&&meta.orig_name)||'document';
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},800);
+    }catch(e){showToast(e.message,'err')}
+}
+
+/* ============================================================
+   موتور مقیاس گانت — روزانه / هفتگی / ماهانه / سالانه (شمسی)
+============================================================ */
+function gzParseD(s){var m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(s));return m?[+m[1],+m[2],+m[3]]:null}
+function gzIso(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}
+function gzScale(minD,maxD,mode){
+    var t0=new Date(minD+'T00:00:00');
+    function off(d){return Math.round((new Date(d+'T00:00:00')-t0)/864e5)}
+    var a=gzParseD(minD),b=gzParseD(maxD);
+    var ja=g2j(a[0],a[1],a[2]),jb=g2j(b[0],b[1],b[2]);
+    var sc={total:1,start:function(){return 0},end:function(){return 1},pos:function(){return 0},label:function(){return''}};
+    if(mode==='daily'){
+        sc.total=Math.max(1,off(maxD)+1);
+        sc.start=function(d){return off(d)};
+        sc.end=function(d){return off(d)+1};
+        sc.pos=sc.start;
+        sc.label=function(i){var p=gzParseD(gzIso(new Date(t0.getTime()+i*864e5)));var j=g2j(p[0],p[1],p[2]);return pN(j[2])};
+    }else if(mode==='weekly'){
+        sc.total=Math.max(1,Math.ceil((off(maxD)+1)/7));
+        sc.start=function(d){return off(d)/7};
+        sc.end=function(d){return (off(d)+1)/7};
+        sc.pos=function(d){return off(d)/7};
+        sc.label=function(i){var p=gzParseD(gzIso(new Date(t0.getTime()+i*7*864e5)));var j=g2j(p[0],p[1],p[2]);return pN(j[1])+'/'+pN(j[2])};
+    }else if(mode==='yearly'){
+        sc.total=Math.max(1,jb[0]-ja[0]+1);
+        sc.start=function(d){var p=gzParseD(d),j=g2j(p[0],p[1],p[2]);return j[0]-ja[0]};
+        sc.end=function(d){return sc.start(d)+1};
+        sc.pos=sc.start;
+        sc.label=function(i){return pN(ja[0]+i)};
+    }else{ /* monthly — پیش‌فرض */
+        sc.total=Math.max(1,(jb[0]-ja[0])*12+(jb[1]-ja[1])+1);
+        sc.start=function(d){var p=gzParseD(d),j=g2j(p[0],p[1],p[2]);return (j[0]-ja[0])*12+(j[1]-ja[1])};
+        sc.end=function(d){return sc.start(d)+1};
+        sc.pos=sc.start;
+        sc.label=function(i){
+            var k=ja[1]-1+i,y=ja[0]+Math.floor(k/12),m=(k%12)+1;
+            var t=SP_M[m-1];
+            if(sc.total>12)t+='/'+pN(String(y).slice(-2));
+            return t;
+        };
+    }
+    return sc;
+}
+function renderGzScale(scaleId,spacerW,minW,sc){
+    var el=$(scaleId);if(!el)return;
+    var every=Math.max(1,Math.ceil(sc.total/36));
+    var h='<div class="gz-spacer" style="width:'+spacerW+'px"></div><div class="gz-cells" style="min-width:'+minW+'px">';
+    for(var i=0;i<sc.total;i++){
+        h+='<div class="gz-cell'+((i%2)?' alt':'')+'">'+((i%every===0)?sc.label(i):'')+'</div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+}
+function setGzMode(key,mode){
+    gzModes[key]=mode;syncGzBtns();
+    if(key==='task')renderGantt();
+    else if(key==='report')renderReportGantt(rpLastList||[]);
+}
+function syncGzBtns(){
+    document.querySelectorAll('.gz-btn').forEach(function(b){
+        b.classList.toggle('on',gzModes[b.dataset.gz]===b.dataset.mode);
+    });
+}
+
+/* ---------- برنامه ---------- */
+function progDev(r){return round1((r.physical_progress||0)-(r.financial_progress||0))}
+function renderProgressGrid(){
+    var arr=currentProject.progress_records||[];
+    $('progressGridBody').innerHTML=arr.length?arr.map(function(r,i){
+        return'<tr><td>'+toPDate(r.from_date)+'</td><td>'+toPDate(r.to_date)+'</td>'+
+              '<td>'+esc(r.subject)+'</td>'+
+              '<td>'+pPct(r.physical_progress)+'</td><td>'+pPct(r.financial_progress)+'</td>'+
+              '<td>'+pN(r.weight||0)+'</td><td>'+fmtMoney(r.budget_amt)+'</td><td>'+fmtMoney(r.spent_amt)+'</td>'+
+              '<td>'+devCell(progDev(r))+'</td>'+
+              '<td>'+rowBtnsPlain('editProgress',i,'delProgress')+'</td></tr>';
+    }).join(''):emptyRow(10,'ردیفی برای برنامه ثبت نشده است');
+}
+function resetProgForm(){
+    ['prFromDate','prToDate'].forEach(clearDate);
+    ['prSubject','prPhysical','prFinancial','prWeight','prBudget','prSpent'].forEach(function(id){$(id).value=''});
+}
+function addProgressRow(){
+    var fd=getG('prFromDate'),td=getG('prToDate'),s=val('prSubject');
+    if(!fd||!td){showToast('بازه تاریخ را کامل انتخاب کنید','err');return}
+    if(fd>td){showToast('تاریخ شروع بعد از پایان است','err');return}
+    if(!s){showToast('موضوع را وارد کنید','err');return}
+    var row={from_date:fd,to_date:td,subject:s,
+        physical_progress:clamp100(num('prPhysical')),financial_progress:clamp100(num('prFinancial')),
+        weight:Math.max(0,num('prWeight')),budget_amt:Math.max(0,num('prBudget')),spent_amt:Math.max(0,num('prSpent'))};
+    if(editIdx.prog!==null){
+        row.id=currentProject.progress_records[editIdx.prog].id;
+        currentProject.progress_records[editIdx.prog]=row;
+        showToast('ردیف برنامه به‌روزرسانی شد');
+    }else currentProject.progress_records.push(Object.assign({id:null},row));
+    resetEditState('prog');resetProgForm();renderProgressGrid();
+}
+function editProgress(i){
+    var r=currentProject.progress_records[i];if(!r)return;
+    setG('prFromDate',r.from_date);setG('prToDate',r.to_date);
+    $('prSubject').value=r.subject;$('prPhysical').value=r.physical_progress;
+    $('prFinancial').value=r.financial_progress;$('prWeight').value=r.weight||'';
+    $('prBudget').value=r.budget_amt||'';$('prSpent').value=r.spent_amt||'';
+    setEditState('prog',i);
+}
+function cancelProgressEdit(){resetProgForm();resetEditState('prog')}
+function delProgress(i){
+    if(!confirm('این ردیف برنامه حذف شود؟'))return;
+    currentProject.progress_records.splice(i,1);
+    if(editIdx.prog===i)cancelProgressEdit();
+    renderProgressGrid();
+}
+
+/* ---------- عملکرد ---------- */
+function renderPerfGrid(){
+    var arr=currentProject.performance_records||[];
+    $('perfGridBody').innerHTML=arr.length?arr.map(function(r,i){
+        return'<tr><td>'+toPDate(r.from_date)+'</td><td>'+toPDate(r.to_date)+'</td>'+
+              '<td>'+esc(r.subject)+'</td>'+
+              '<td>'+pPct(r.physical_progress)+'</td><td>'+pPct(r.financial_progress)+'</td>'+
+              '<td>'+pN(r.weight||0)+'</td><td>'+fmtMoney(r.budget_amt)+'</td><td>'+fmtMoney(r.spent_amt)+'</td>'+
+              '<td>'+devCell(progDev(r))+'</td><td>'+esc(r.description)+'</td>'+
+              '<td>'+rowBtnsPlain('editPerformance',i,'delPerformance')+'</td></tr>';
+    }).join(''):emptyRow(11,'ردیفی برای عملکرد ثبت نشده است');
+}
+function resetPerfForm(){
+    ['pfFromDate','pfToDate'].forEach(clearDate);
+    ['pfSubject','pfPhysical','pfFinancial','pfWeight','pfBudget','pfSpent','pfDesc'].forEach(function(id){$(id).value=''});
+}
+function addPerformanceRow(){
+    var fd=getG('pfFromDate'),td=getG('pfToDate'),s=val('pfSubject');
+    if(!fd||!td){showToast('بازه تاریخ را کامل انتخاب کنید','err');return}
+    if(fd>td){showToast('تاریخ شروع بعد از پایان است','err');return}
+    if(!s){showToast('موضوع را وارد کنید','err');return}
+    var row={from_date:fd,to_date:td,subject:s,
+        physical_progress:clamp100(num('pfPhysical')),financial_progress:clamp100(num('pfFinancial')),
+        weight:Math.max(0,num('pfWeight')),budget_amt:Math.max(0,num('pfBudget')),spent_amt:Math.max(0,num('pfSpent')),
+        description:val('pfDesc')};
+    if(editIdx.perf!==null){
+        row.id=currentProject.performance_records[editIdx.perf].id;
+        currentProject.performance_records[editIdx.perf]=row;
+        showToast('ردیف عملکرد به‌روزرسانی شد');
+    }else currentProject.performance_records.push(Object.assign({id:null},row));
+    resetEditState('perf');resetPerfForm();renderPerfGrid();
+}
+function editPerformance(i){
+    var r=currentProject.performance_records[i];if(!r)return;
+    setG('pfFromDate',r.from_date);setG('pfToDate',r.to_date);
+    $('pfSubject').value=r.subject;$('pfPhysical').value=r.physical_progress;
+    $('pfFinancial').value=r.financial_progress;$('pfWeight').value=r.weight||'';
+    $('pfBudget').value=r.budget_amt||'';$('pfSpent').value=r.spent_amt||'';
+    $('pfDesc').value=r.description||'';
+    setEditState('perf',i);
+}
+function cancelPerformanceEdit(){resetPerfForm();resetEditState('perf')}
+function delPerformance(i){
+    if(!confirm('این ردیف عملکرد حذف شود؟'))return;
+    currentProject.performance_records.splice(i,1);
+    if(editIdx.perf===i)cancelPerformanceEdit();
+    renderPerfGrid();
+}
+function copyPlanToPerformance(){
+    var src=currentProject.progress_records||[];
+    if(!src.length){showToast('برنامه‌ای برای کپی وجود ندارد','wrn');return}
+    if((currentProject.performance_records||[]).length&&!confirm('ردیف‌های برنامه به عملکرد فعلی اضافه شوند؟'))return;
+    src.forEach(function(r){
+        currentProject.performance_records.push({id:null,from_date:r.from_date,to_date:r.to_date,
+            subject:r.subject,physical_progress:r.physical_progress,financial_progress:r.financial_progress,
+            weight:r.weight,budget_amt:r.budget_amt,spent_amt:r.spent_amt,description:''});
+    });
+    renderPerfGrid();
+    showToast(src.length+' ردیف از برنامه کپی شد');
+}
+
+/* ---------- مکاتبات ---------- */
+function renderLettersGrid(){
+    var arr=currentProject.letters||[];
+    $('lettersGridBody').innerHTML=arr.length?arr.map(function(r,i){
+        var sad=r.letter_type==='sadere';
+        return'<tr><td><span class="badge" style="background:'+(sad?'#e0e7ff;color:#3730a3':'#dcfce7;color:#166534')+'">'+
+              (sad?'صادره':'وارده')+'</span></td>'+
+              '<td><span class="code-cell">'+esc(r.letter_no)+'</span></td><td>'+toPDate(r.letter_date)+'</td>'+
+              '<td>'+esc(r.subject)+'</td><td>'+esc(r.recipient)+'</td>'+
+              '<td>'+rowBtnsPlain('editLetter',i,'delLetter')+'</td></tr>';
+    }).join(''):emptyRow(6,'نامه‌ای ثبت نشده است');
+}
+function resetLtrForm(){
+    ['ltrNo','ltrSubject','ltrRecipient'].forEach(function(id){$(id).value=''});
+    clearDate('ltrDate');$('ltrSadere').checked=true;
+}
+function addLetterRow(){
+    var no=val('ltrNo'),d=getG('ltrDate'),s=val('ltrSubject');
+    if(!no||!d||!s){showToast('شماره، تاریخ و موضوع نامه الزامی است','err');return}
+    var row={letter_no:no,letter_date:d,subject:s,recipient:val('ltrRecipient'),
+        letter_type:$('ltrSadere').checked?'sadere':'varede'};
+    if(editIdx.ltr!==null){
+        row.id=currentProject.letters[editIdx.ltr].id;
+        currentProject.letters[editIdx.ltr]=row;
+        showToast('نامه به‌روزرسانی شد');
+    }else currentProject.letters.push(Object.assign({id:null},row));
+    resetEditState('ltr');resetLtrForm();renderLettersGrid();
+}
+function editLetter(i){
+    var r=currentProject.letters[i];if(!r)return;
+    $('ltrNo').value=r.letter_no;setG('ltrDate',r.letter_date);
+    $('ltrSubject').value=r.subject;$('ltrRecipient').value=r.recipient||'';
+    (r.letter_type==='varede'?$('ltrVarede'):$('ltrSadere')).checked=true;
+    setEditState('ltr',i);
+}
+function cancelLetterEdit(){resetLtrForm();resetEditState('ltr')}
+function delLetter(i){
+    if(!confirm('این نامه حذف شود؟'))return;
+    currentProject.letters.splice(i,1);
+    if(editIdx.ltr===i)cancelLetterEdit();
+    renderLettersGrid();
+}
+
+/* ---------- فعالیت‌ها و گانت ---------- */
+function renderTaskList(){
+    var arr=currentProject.tasks||[];
+    $('modalTaskListBody').innerHTML=arr.length?arr.map(function(t,i){
+        return'<tr><td>'+esc(t.name)+'</td><td>'+(esc(t.owner)||'—')+'</td>'+
+              '<td>'+fmtMoney(t.budget_needed)+'</td><td>'+fmtMoney(t.spent_cost)+'</td>'+
+              '<td>'+toPDate(t.start_date)+' — '+toPDate(t.end_date)+'</td>'+
+              '<td>'+rowBtnsPlain('editTask',i,'delTask')+'</td></tr>';
+    }).join(''):emptyRow(6,'فعالیتی ثبت نشده است');
+}
+function resetTaskForm(){
+    ['newTaskName','newTaskOwner','newTaskBudget','newTaskSpent'].forEach(function(id){$(id).value=''});
+    ['newTaskStart','newTaskEnd'].forEach(clearDate);
+}
+function addTaskToProject(){
+    var n=val('newTaskName');
+    if(!n){showToast('عنوان فعالیت الزامی است','err');return}
+    var sd=getG('newTaskStart'),ed=getG('newTaskEnd');
+    if(sd&&ed&&sd>ed){showToast('تاریخ شروع فعالیت بعد از پایان آن است','err');return}
+    var row={name:n,owner:val('newTaskOwner'),
+        budget_needed:Math.max(0,num('newTaskBudget')),spent_cost:Math.max(0,num('newTaskSpent')),
+        start_date:sd,end_date:ed};
+    if(editIdx.task!==null){
+        row.id=currentProject.tasks[editIdx.task].id;
+        currentProject.tasks[editIdx.task]=row;
+        showToast('فعالیت به‌روزرسانی شد');
+    }else currentProject.tasks.push(Object.assign({id:null},row));
+    resetEditState('task');resetTaskForm();renderGantt();
+}
+function editTask(i){
+    var t=currentProject.tasks[i];if(!t)return;
+    $('newTaskName').value=t.name;$('newTaskOwner').value=t.owner||'';
+    $('newTaskBudget').value=t.budget_needed||'';$('newTaskSpent').value=t.spent_cost||'';
+    setG('newTaskStart',t.start_date);setG('newTaskEnd',t.end_date);
+    setEditState('task',i);switchTab('gantt');
+}
+function cancelTaskEdit(){resetTaskForm();resetEditState('task')}
+function delTask(i){
+    if(!confirm('این فعالیت حذف شود؟'))return;
+    currentProject.tasks.splice(i,1);
+    if(editIdx.task===i)cancelTaskEdit();
+    renderGantt();
+}
+function renderGantt(){
+    renderTaskList();
+    var arr=currentProject.tasks||[];
+    var labels=$('ganttLabels'),bars=$('ganttCanvas');
+    var dated=arr.filter(function(t){return t.start_date&&t.end_date});
+    if(!dated.length){
+        labels.innerHTML='<div style="padding:18px 8px;color:var(--gy);font-size:.85rem">برای نمایش تایم‌لاین، بازه زمانی فعالیت‌ها را تکمیل کنید</div>';
+        bars.innerHTML='';bars.style.minHeight='';
+        if($('taskGzScale'))$('taskGzScale').innerHTML='';
+        $('ganttStartDate').textContent='---';$('ganttEndDate').textContent='---';
+        return;
+    }
+    var min=dated[0].start_date,max=dated[0].end_date;
+    dated.forEach(function(t){if(t.start_date<min)min=t.start_date;if(t.end_date>max)max=t.end_date});
+    var sc=gzScale(min,max,gzModes.task||'monthly');
+    renderGzScale('taskGzScale',130,450,sc);
+    $('ganttStartDate').textContent=toPDate(min);
+    $('ganttEndDate').textContent=toPDate(max);
+    var tp=sc.pos(todayIso())/sc.total*100;
+    var showToday=tp>=0&&tp<=100;
+    labels.innerHTML='';bars.innerHTML='';
+    arr.forEach(function(t,i){
+        var lbl=document.createElement('div');
+        lbl.className='gantt-label-item';
+        lbl.textContent=t.name||'—';lbl.title=t.name||'';
+        labels.appendChild(lbl);
+        if(!(t.start_date&&t.end_date))return;
+        var left=Math.max(0,sc.start(t.start_date)/sc.total*100);
+        var w=Math.max(1.5,Math.min(sc.total,sc.end(t.end_date))/sc.total*100-left);
+        var bar=document.createElement('div');
+        bar.className='task-bar';
+        bar.style.left=left+'%';bar.style.width=w+'%';
+        bar.style.top=(i*36+6)+'px';
+        bar.style.background=PAL[i%PAL.length];
+        bar.textContent=t.name;
+        bar.title=t.name+' ('+toPDate(t.start_date)+' — '+toPDate(t.end_date)+')';
+        bar.onclick=function(){editTask(i)};
+        bars.appendChild(bar);
+    });
+    if(showToday){
+        var td=document.createElement('div');
+        td.className='rp-today';
+        td.style.left=tp+'%';
+        bars.appendChild(td);
+    }
+    bars.style.minHeight=(arr.length*36+12)+'px';
+}
+
+/* ============================================================
+   بخش ۸: ذخیره / حذف پروژه
+============================================================ */
+function collectPayload(){
+    var p=currentProject;
+    return{
+        id:p.id,name:val('editProjectName'),
+        manager:val('editProjectManager'),status:$('editProjectStatus').value,
+        project_type:document.querySelector('input[name="projectType"]:checked').value,
+        project_code:val('editProjectCode'),contract_number:val('editProjectContractNo'),
+        weight:Math.max(0,num('editProjectWeight')),
+        start_date:getG('editProjectStart'),end_date:getG('editProjectEnd'),
+        contract_start_date:getG('editProjectContractStart'),contract_end_date:getG('editProjectContractEnd'),
+        total_cost:Math.max(0,num('editProjectBudget')),
+        spent_cost:Math.max(0,num('editProjectSpent')),
+        progress_percent:clamp100(num('editProjectProgress')),
+        tasks:p.tasks||[],progress_records:p.progress_records||[],
+        performance_records:p.performance_records||[],letters:p.letters||[],notes:p.notes||[]
+    };
+}
+async function saveProjectChanges(){
+    if(!currentProject)return;
+    var pl=collectPayload();
+    if(!pl.name){showToast('نام پروژه الزامی است','err');switchTab('details');return}
+    if(pl.start_date&&pl.end_date&&pl.start_date>pl.end_date){
+        showToast('تاریخ شروع پروژه بعد از پایان آن است','err');switchTab('details');return}
+    if(pl.contract_start_date&&pl.contract_end_date&&pl.contract_start_date>pl.contract_end_date){
+        showToast('تاریخ شروع قرارداد بعد از پایان آن است','err');switchTab('contract');return}
+    var btn=$('saveBtnText'),ld=$('saveLoader');
+    btn.textContent='در حال ذخیره...';ld.style.display='inline-block';
+    try{
+        var data=await api('/projects',{method:'POST',body:JSON.stringify(pl)});
+        allProjects=Array.isArray(data)?data:(data.projects||allProjects);
+        if(!currentProject.id&&data&&data.id)currentProject.id=data.id;
+        closeModal();
+        applyMainFilters();
+        showToast('تغییرات ذخیره شد');
+    }catch(e){showToast(e.message,'err')}
+    finally{btn.textContent='ذخیره تغییرات';ld.style.display='none'}
+}
+async function deleteCurrentProject(){
+    if(!currentProject)return;
+    if(!currentProject.id){closeModal();return}
+    if(!confirm('پروژه «'+currentProject.name+'» و تمام داده‌های وابسته حذف شود؟'))return;
+    try{
+        allProjects=await api('/projects/'+currentProject.id,{method:'DELETE'});
+        closeModal();
+        applyMainFilters();
+        showToast('پروژه حذف شد');
+    }catch(e){showToast(e.message,'err')}
+}
+
+/* ============================================================
+   بخش ۹: داشبورد تحلیلی
+============================================================ */
+function kpiCard(t,v,icon,cls){
+    return'<div class="card"><div class="card-icon '+cls+'"><i class="fa-solid '+icon+'"></i></div>'+
+          '<div class="card-info"><h3>'+t+'</h3><p>'+v+'</p></div></div>';
+}
+function openAnalyticsModal(){$('analyticsOverlay').classList.add('open');renderAnalytics()}
+function closeAnalyticsModal(){$('analyticsOverlay').classList.remove('open')}
+function renderAnalytics(){
+    var L=filteredProjects();
+    var note=$('anFilterNote');
+    if(note)note.textContent=(L.length!==allProjects.length&&L.length>0)
+        ?'فیلتر فعال — نمایش '+pN(L.length)+' از '+pN(allProjects.length)+' پروژه':'';
+    if(!L.length){
+        $('anKpis').innerHTML='<div class="card"><div class="card-info"><p>پروژه‌ای برای این فیلتر وجود ندارد</p></div></div>';
+        ['anProgress','anBudget','anStatus','anType','anTop','anDev'].forEach(function(id){
+            if(charts[id]){charts[id].destroy();delete charts[id]}
+        });
+        return;
+    }
+    var tb=sum(L,'total_cost'),ts=sum(L,'spent_cost');
+    var fins=L.map(function(p){return p.total_cost>0?p.spent_cost*100/p.total_cost:0});
+    var over=tb>0?(ts-tb)/tb*100:0;
+    var risky=L.filter(function(p,i){return fins[i]-(p.progress_percent||0)>10}).length;
+    $('anKpis').innerHTML=[
+        kpiCard('تعداد پروژه‌ها',pN(L.length),'fa-layer-group','bg-b'),
+        kpiCard('پروژه فعال',pN(L.filter(function(p){return p.status==='active'}).length),'fa-circle-play','bg-g'),
+        kpiCard('میانگین پیشرفت فیزیکی',pPct(avg(L,'progress_percent')),'fa-chart-line','bg-g'),
+        kpiCard('میانگین پیشرفت مالی',pPct(fins.reduce(function(a,b){return a+b},0)/fins.length),'fa-sack-dollar','bg-b'),
+        kpiCard('کل بودجه (م.ر)',fmtMoney(tb),'fa-coins','bg-b'),
+        kpiCard('کل هزینه (م.ر)',fmtMoney(ts),'fa-money-bill-wave','bg-o'),
+        kpiCard('انحراف بودجه کل',devCell(round1(over)),'fa-arrows-up-down',over>0?'bg-r':'bg-g'),
+        kpiCard('پروژه‌های پرریسک',pN(risky),'fa-triangle-exclamation',risky?'bg-r':'bg-g')
+    ].join('');
+    var names=L.map(function(p){return shortName(p.name)});
+    mkChart('anProgress',{type:'bar',data:{labels:names,datasets:[
+        {label:'فیزیکی',data:L.map(function(p){return p.progress_percent}),backgroundColor:'#4361ee',borderRadius:4},
+        {label:'مالی',data:fins.map(round1),backgroundColor:'#2ecc71',borderRadius:4}]},options:baseBarOpts()});
+    mkChart('anBudget',{type:'bar',data:{labels:names,datasets:[
+        {label:'بودجه',data:L.map(function(p){return p.total_cost}),backgroundColor:'#4361ee',borderRadius:4},
+        {label:'هزینه',data:L.map(function(p){return p.spent_cost}),backgroundColor:'#e74c3c',borderRadius:4}]},options:baseBarOpts()});
+    var c={active:0,pending:0,hold:0};
+    L.forEach(function(p){if(c[p.status]!=null)c[p.status]++});
+    mkChart('anStatus',{type:'pie',data:{labels:['فعال','در انتظار','متوقف'],
+        datasets:[{data:[c.active,c.pending,c.hold],backgroundColor:['#2ecc71','#f1c40f','#94a3b8']}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',rtl:true}}}});
+    var byType={omrani:{n:0,b:0},jari:{n:0,b:0}};
+    L.forEach(function(p){
+        var t=byType[p.project_type]?p.project_type:'omrani';
+        byType[t].n++;byType[t].b+=+p.total_cost||0;
+    });
+    mkChart('anType',{type:'bar',data:{labels:['عمرانی ('+pN(byType.omrani.n)+')','جاری ('+pN(byType.jari.n)+')'],
+        datasets:[{label:'بودجه (م.ر)',data:[byType.omrani.b,byType.jari.b],backgroundColor:['#4361ee','#2ecc71'],borderRadius:4}]},
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+    var top=L.slice().sort(function(a,b){return b.total_cost-a.total_cost}).slice(0,5);
+    mkChart('anTop',{type:'bar',data:{labels:top.map(function(p){return shortName(p.name)}),
+        datasets:[{data:top.map(function(p){return p.total_cost}),backgroundColor:PAL,borderRadius:4}]},
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+    var devs=L.map(function(p,i){return round1(fins[i]-(p.progress_percent||0))});
+    mkChart('anDev',{type:'bar',data:{labels:names,datasets:[{label:'انحراف (٪)',data:devs,
+        backgroundColor:devs.map(function(d){return d>0?'#e74c3c':(d<0?'#2ecc71':'#94a3b8')}),borderRadius:4}]},options:baseBarOpts()});
+}
+
+/* ============================================================
+   بخش ۹.۵: گزارش کنترل پروژه (گانت برنامه / عملکرد)
+============================================================ */
+function openReportModal(){
+    fillReportFilters();
+    $('reportOverlay').classList.add('open');
+    renderReport();
+}
+function closeReportModal(){ $('reportOverlay').classList.remove('open'); }
+
+function fillReportFilters(){
+    var sel=$('rpManager'),cur=sel.value,ms=[];
+    allProjects.forEach(function(p){
+        var m=(p.manager||'').trim();
+        if(m&&ms.indexOf(m)===-1)ms.push(m);
+    });
+    ms.sort(function(a,b){return a.localeCompare(b,'fa')});
+    sel.innerHTML='<option value="">همه واحدهای اجرایی ('+pN(allProjects.length)+' پروژه)</option>'+
+        ms.map(function(m){return'<option value="'+esc(m)+'">'+esc(m)+'</option>'}).join('');
+    if(cur&&ms.indexOf(cur)>-1)sel.value=cur;
+}
+function rpList(){
+    var m=$('rpManager').value;
+    return allProjects
+        .filter(function(p){return !m||(p.manager||'').trim()===m})
+        .slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),'fa')});
+}
+function mean(a){return a.length?a.reduce(function(x,y){return x+y},0)/a.length:0}
+function cumPhys(records){
+    var c=0;(records||[]).forEach(function(r){c+=(+r.physical_progress||0)});
+    return Math.min(100,round1(c));
+}
+function lastActualDate(p){
+    var d='';(p.performance_records||[]).forEach(function(r){if(r.to_date&&r.to_date>d)d=r.to_date});
+    return d;
+}
+function aggCurve(list,key){
+    var set={};
+    list.forEach(function(p){(p[key]||[]).forEach(function(r){if(r.to_date)set[r.to_date]=1})});
+    var ds=Object.keys(set).sort();
+    if(!ds.length)return[];
+    var W=0;list.forEach(function(p){W+=(+p.weight||0)});
+    return ds.map(function(d){
+        var acc=0;
+        list.forEach(function(p){
+            var w=+p.weight||0,cum=0;
+            (p[key]||[]).forEach(function(r){if(r.to_date&&r.to_date<=d)cum+=(+r.physical_progress||0)});
+            cum=Math.min(100,cum);
+            acc+=(W>0)?cum*(w/W):(cum/list.length);
+        });
+        return{date:d,v:Math.min(100,round1(acc))};
+    });
+}
+function valueAt(pts,d){var v=0;pts.forEach(function(p){if(p.date<=d)v=p.v});return v}
+
+function renderReport(){
+    rpLastList=rpList();
+    renderReportKpis(rpLastList);
+    renderReportSCurve(rpLastList);
+    renderReportGantt(rpLastList);
+    renderReportTable(rpLastList);
+}
+
+function renderReportKpis(list){
+    if(!list.length){
+        $('rpKpis').innerHTML='<div class="card"><div class="card-info"><p>پروژه‌ای برای این فیلتر وجود ندارد</p></div></div>';
+        return;
+    }
+    var planArr=list.map(function(p){return cumPhys(p.progress_records)});
+    var actArr =list.map(function(p){return cumPhys(p.performance_records)});
+    var W=0,wP=0,wA=0;
+    list.forEach(function(p,i){var w=+p.weight||0;W+=w;wP+=planArr[i]*w;wA+=actArr[i]*w});
+    var plan=W>0?wP/W:mean(planArr);
+    var act =W>0?wA/W:mean(actArr);
+    var dev=round1(act-plan);
+    $('rpKpis').innerHTML=[
+        kpiCard('تعداد پروژه‌ها',pN(list.length),'fa-layer-group','bg-b'),
+        kpiCard('میانگین برنامه (وزنی)',pPct(plan),'fa-chart-line','bg-b'),
+        kpiCard('میانگین عملکرد (وزنی)',pPct(act),'fa-clipboard-check','bg-g'),
+        kpiCard('انحراف عملکرد از برنامه',devCellProg(dev),'fa-arrows-up-down',dev<0?'bg-r':'bg-g'),
+        kpiCard('وزن کل',pN(round1(W)),'fa-weight-hanging','bg-o')
+    ].join('');
+}
+
+function renderReportSCurve(list){
+    var planPts=aggCurve(list,'progress_records');
+    var actPts =aggCurve(list,'performance_records');
+    var ds={};planPts.forEach(function(p){ds[p.date]=1});actPts.forEach(function(p){ds[p.date]=1});
+    var dates=Object.keys(ds).sort();
+    mkChart('rpSCurve',{type:'line',data:{labels:dates.map(toPDate),datasets:[
+        {label:'برنامه (تجمعی ٪)',data:dates.map(function(d){return valueAt(planPts,d)}),
+         borderColor:'#4361ee',backgroundColor:'rgba(67,97,238,.08)',fill:true,tension:.35,pointRadius:3,borderWidth:2},
+        {label:'عملکرد (تجمعی ٪)',data:dates.map(function(d){return valueAt(actPts,d)}),
+         borderColor:'#2ecc71',backgroundColor:'rgba(46,204,113,.10)',fill:true,tension:.35,pointRadius:3,borderWidth:2}]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{rtl:true}},scales:{y:{beginAtZero:true,max:100}}}});
+}
+
+function renderReportGantt(list){
+    var wrap=$('rpGanttRows');
+    var min='',max='';
+    function exp(d){if(!d)return;if(min===''||d<min)min=d;if(max===''||d>max)max=d}
+    list.forEach(function(p){
+        exp(p.start_date);exp(p.end_date);
+        (p.progress_records||[]).forEach(function(r){exp(r.from_date);exp(r.to_date)});
+        (p.performance_records||[]).forEach(function(r){exp(r.from_date);exp(r.to_date)});
+    });
+    if(min===''){
+        wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--gy)">داده‌ای برای نمایش تایم‌لاین وجود ندارد</div>';
+        $('rpGStart').textContent='—';$('rpGEnd').textContent='—';
+        if($('rpGzScale'))$('rpGzScale').innerHTML='';
+        return;
+    }
+    $('rpGStart').textContent=toPDate(min);
+    $('rpGEnd').textContent=toPDate(max);
+    var sc=gzScale(min,max,gzModes.report||'monthly');
+    renderGzScale('rpGzScale',230,560,sc);
+    var tp=sc.pos(todayIso())/sc.total*100;
+    var showToday=tp>=0&&tp<=100;
+
+    function segPos(fd,td){
+        var l=Math.max(0,sc.start(fd)/sc.total*100);
+        var w=Math.max(0.5,Math.min(sc.total,sc.end(td))/sc.total*100-l);
+        return[l,w];
+    }
+    function seg(fd,td,color,title,top){
+        var pw=segPos(fd,td);
+        var s=document.createElement('div');
+        s.className='rp-seg';
+        s.style.left=pw[0]+'%';
+        s.style.width=pw[1]+'%';
+        s.style.background=color;
+        s.style.top=(top||2)+'px';
+        s.title=title;
+        return s;
+    }
+    wrap.innerHTML='';
+    list.forEach(function(p,i){
+        var pl=cumPhys(p.progress_records),ac=cumPhys(p.performance_records);
+        var row=document.createElement('div');row.className='rp-row';
+        var lb=document.createElement('div');lb.className='rp-row-label';
+        lb.innerHTML='<div class="rp-name" title="'+esc(p.name)+'">'+esc(p.name)+'</div>'+
+            '<div class="rp-sub">'+esc(p.manager||'واحد ندارد')+' • وزن '+pN(p.weight||0)+'</div>'+
+            '<div class="rp-sub"><span style="color:#4361ee;font-weight:700">برنامه '+pPct(pl)+'</span>'+
+            ' | <span style="color:#27ae60;font-weight:700">عملکرد '+pPct(ac)+'</span> '+devCellProg(round1(ac-pl))+'</div>';
+        row.appendChild(lb);
+
+        var cv=document.createElement('div');cv.className='rp-row-canvas';
+        if(p.start_date&&p.end_date&&p.start_date<=p.end_date){
+            var b=seg(p.start_date,p.end_date,'#e2e8f0',
+                'بازه پروژه: '+toPDate(p.start_date)+' تا '+toPDate(p.end_date),6);
+            b.style.height='8px';b.style.cursor='default';b.style.boxShadow='none';
+            cv.appendChild(b);
+        }
+        (p.progress_records||[]).forEach(function(r){
+            if(!r.from_date||!r.to_date)return;
+            cv.appendChild(seg(r.from_date,r.to_date,'#4361ee',
+                'برنامه — '+r.subject+' | '+toPDate(r.from_date)+' تا '+toPDate(r.to_date)+
+                ' | پیشرفت: '+pPct(r.physical_progress),2));
+        });
+        (p.performance_records||[]).forEach(function(r){
+            if(!r.from_date||!r.to_date)return;
+            cv.appendChild(seg(r.from_date,r.to_date,'#2ecc71',
+                'عملکرد — '+r.subject+' | '+toPDate(r.from_date)+' تا '+toPDate(r.to_date)+
+                ' | پیشرفت: '+pPct(r.physical_progress),26));
+        });
+        if(showToday){
+            var t=document.createElement('div');
+            t.className='rp-today'+(i===0?' with-lbl':'');
+            t.style.left=tp+'%';
+            cv.appendChild(t);
+        }
+        row.appendChild(cv);
+        wrap.appendChild(row);
+    });
+}
+
+function renderReportTable(list){
+    var tb=$('rpTableBody');
+    if(!list.length){tb.innerHTML=emptyRow(8,'پروژه‌ای برای این فیلتر وجود ندارد');return}
+    tb.innerHTML=list.map(function(p){
+        var pl=cumPhys(p.progress_records),ac=cumPhys(p.performance_records);
+        var lad=lastActualDate(p);
+        return'<tr>'+
+            '<td><strong>'+esc(p.name)+'</strong></td>'+
+            '<td>'+esc(p.manager||'—')+'</td>'+
+            '<td>'+toPDate(p.start_date)+' — '+toPDate(p.end_date)+'</td>'+
+            '<td><span style="color:#4361ee;font-weight:700">'+pPct(pl)+'</span></td>'+
+            '<td><span style="color:#27ae60;font-weight:700">'+pPct(ac)+'</span></td>'+
+            '<td>'+devCellProg(round1(ac-pl))+'</td>'+
+            '<td>'+pPct(p.progress_percent)+'</td>'+
+            '<td>'+(lad?toPDate(lad):'—')+'</td>'+
+        '</tr>';
+    }).join('');
+}
+
+function printReport(){
+    var list=rpList();
+    var unit=$('rpManager').value||'همه واحدهای اجرایی';
+    var h='<div class="p-head"><div class="p-company">شرکت عمران و توسعه شرق رضوی</div>'+
+          '<div class="p-title">گزارش کنترل پروژه — پیشرفت فیزیکی (برنامه / عملکرد)</div>'+
+          '<div class="p-date">واحد اجرایی: '+esc(unit)+' — تاریخ گزارش: '+todayP()+'</div></div>';
+    h+='<div class="p-sec">خلاصه پیشرفت پروژه‌ها</div>';
+    if(!list.length)h+='<p>پروژه‌ای برای این فیلتر وجود ندارد</p>';
+    else{
+        h+='<table class="p-table p-tbl-light"><thead><tr>'+
+           '<th>پروژه</th><th>واحد اجرایی</th><th>بازه</th><th>برنامه ٪</th><th>عملکرد ٪</th><th>انحراف</th><th>درصد ثبت‌شده</th></tr></thead><tbody>'+
+           list.map(function(p){
+               var pl=cumPhys(p.progress_records),ac=cumPhys(p.performance_records);
+               return'<tr><td>'+esc(p.name)+'</td><td>'+esc(p.manager||'—')+'</td>'+
+                   '<td>'+toPDate(p.start_date)+' — '+toPDate(p.end_date)+'</td>'+
+                   '<td>'+pPct(pl)+'</td><td>'+pPct(ac)+'</td>'+
+                   '<td>'+pN(round1(ac-pl))+'</td><td>'+pPct(p.progress_percent)+'</td></tr>';
+           }).join('')+'</tbody></table>';
+    }
+    h+='<div class="p-sign"><span>تهیه‌کننده: ..................</span><span>تأیید کننده: ..................</span></div>';
+    h+='<div class="p-foot">سیستم مدیریت پروژه — شرکت عمران و توسعه شرق رضوی</div>';
+    $('printArea').innerHTML=h;
+    window.print();
+}
+
+/* ============================================================
+   خروجی اکسل رنگی «گزارش کنترل پروژه» — XML Spreadsheet (.xls)
+============================================================ */
+function xmlEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function xR(v){return Math.round((v||0)*10)/10}
+function xCell(v,style){
+    if(v==null||v==='')return'<Cell'+(style?' ss:StyleID="'+style+'"':'')+'/>';
+    if(typeof v==='number'&&isFinite(v))
+        return'<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="Number">'+v+'</Data></Cell>';
+    return'<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="String">'+xmlEsc(v)+'</Data></Cell>';
+}
+function xRow(cells,h){return'<Row'+(h?' ss:Height="'+h+'"':'')+'>'+cells.join('')+'</Row>'}
+function xSheet(name,rows,widths){
+    return'<Worksheet ss:Name="'+xmlEsc(name)+'"><Table>'+
+        widths.map(function(w){return'<Column ss:AutoFitWidth="0" ss:Width="'+w+'"/>'}).join('')+
+        rows.join('')+'</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">'+
+        '<DisplayRightToLeft/><FreezePanes/><FrozenNoSplit/>'+
+        '<SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane>'+
+        '<ActivePane>2</ActivePane><Panes><Pane><Number>3</Number></Pane><Pane><Number>2</Number></Pane></Panes>'+
+        '</WorksheetOptions></Worksheet>';
+}
+function xDevStyle(v){if(v<-0.05)return'bad';if(v>0.05)return'good';return'neutral'}
+function xDevStyleFM(v){if(v>0.05)return'bad';if(v<-0.05)return'good';return'neutral'}
+
+async function exportControlReportXls(){
+    try{
+        var list=rpList();
+        if(!list.length){showToast('پروژه‌ای برای خروجی وجود ندارد','wrn');return}
+        var unit=$('rpManager').value||'همه واحدهای اجرایی';
+
+        var S='<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Tahoma" ss:Size="10"/><Alignment ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="ttl"><Font ss:Bold="1" ss:Size="13" ss:Color="#1E3A5F"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="sub"><Font ss:Size="9" ss:Color="#64748B"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#4361EE" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="txt"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="ctr"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="num"><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="int"><NumberFormat ss:Format="0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="pblue"><Font ss:Bold="1" ss:Color="#1D4ED8"/><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="pgreen"><Font ss:Bold="1" ss:Color="#15803D"/><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="tagp"><Font ss:Bold="1" ss:Color="#1D4ED8"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="taga"><Font ss:Bold="1" ss:Color="#15803D"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="bad"><Font ss:Bold="1" ss:Color="#B91C1C"/><Interior ss:Color="#FEE2E2" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="good"><Font ss:Bold="1" ss:Color="#15803D"/><Interior ss:Color="#DCFCE7" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="neutral"><Font ss:Color="#64748B"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'+
+        '<Style ss:ID="sum"><Font ss:Bold="1"/><Interior ss:Color="#EEF2FF" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>';
+
+        var H1=['ردیف','نام پروژه','کد پروژه','واحد اجرایی','نوع','وضعیت','وزن','شروع پروژه','پایان پروژه','برنامه ٪','عملکرد ٪','انحراف','درصد ثبت‌شده','آخرین عملکرد'];
+        var rows1=[];
+        rows1.push('<Row ss:Height="26"><Cell ss:StyleID="ttl" ss:MergeAcross="'+(H1.length-1)+'"><Data ss:Type="String">'+xmlEsc('گزارش کنترل پروژه — پیشرفت فیزیکی (برنامه / عملکرد)')+'</Data></Cell></Row>');
+        rows1.push('<Row ss:Height="18"><Cell ss:StyleID="sub" ss:MergeAcross="'+(H1.length-1)+'"><Data ss:Type="String">'+xmlEsc('واحد اجرایی: '+unit+' — تاریخ گزارش: '+todayP())+'</Data></Cell></Row>');
+        rows1.push('<Row/>');
+        rows1.push(xRow(H1.map(function(h){return xCell(h,'hdr')}),22));
+        var W=0,wP=0,wA=0;
+        list.forEach(function(p,i){
+            var pl=cumPhys(p.progress_records),ac=cumPhys(p.performance_records);
+            var w=(+p.weight)||0;W+=w;wP+=pl*w;wA+=ac*w;
+            var lad=lastActualDate(p);
+            rows1.push(xRow([
+                xCell(i+1,'int'),
+                xCell(p.name||'','txt'),
+                xCell(p.project_code||'','ctr'),
+                xCell(p.manager||'','txt'),
+                xCell(typeFa(p.project_type),'ctr'),
+                xCell(statusFa(p.status),'ctr'),
+                xCell(w,'int'),
+                xCell(dateCell(p.start_date),'ctr'),
+                xCell(dateCell(p.end_date),'ctr'),
+                xCell(pl,'pblue'),
+                xCell(ac,'pgreen'),
+                xCell(xR(ac-pl),xDevStyle(ac-pl)),
+                xCell((+p.progress_percent)||0,'num'),
+                xCell(lad?dateCell(lad):'','ctr')
+            ]));
+        });
+        var plan=W>0?xR(wP/W):0,act=W>0?xR(wA/W):0,dv=act-plan;
+        rows1.push(xRow([
+            xCell('','sum'),
+            '<Cell ss:StyleID="sum" ss:MergeAcross="4"><Data ss:Type="String">'+xmlEsc('میانگین وزنی کل پروژه‌ها')+'</Data></Cell>',
+            xCell(W,'sum'),
+            xCell('','sum'),xCell('','sum'),
+            xCell(plan,'sum'),
+            xCell(act,'sum'),
+            '<Cell ss:StyleID="'+xDevStyle(dv)+'"><Data ss:Type="Number">'+xR(dv)+'</Data></Cell>',
+            xCell('','sum'),xCell('','sum')
+        ]));
+
+        var H2=['نوع','نام پروژه','کد پروژه','از تاریخ','تا تاریخ','موضوع','فیزیکی ٪','مالی ٪','انحراف دوره'];
+        var rows2=['<Row ss:Height="24"><Cell ss:StyleID="ttl" ss:MergeAcross="'+(H2.length-1)+'"><Data ss:Type="String">'+xmlEsc('جزئیات دوره‌های برنامه و عملکرد')+'</Data></Cell></Row>','<Row/>',
+            xRow(H2.map(function(h){return xCell(h,'hdr')}),22)];
+        list.forEach(function(p){
+            (p.progress_records||[]).forEach(function(r){
+                var d=xR((r.physical_progress||0)-(r.financial_progress||0));
+                rows2.push(xRow([xCell('برنامه','tagp'),xCell(p.name||'','txt'),xCell(p.project_code||'','ctr'),
+                    xCell(dateCell(r.from_date),'ctr'),xCell(dateCell(r.to_date),'ctr'),xCell(r.subject||'','txt'),
+                    xCell(xR(r.physical_progress),'pblue'),xCell(xR(r.financial_progress),'num'),
+                    xCell(d,xDevStyleFM(d))]));
+            });
+            (p.performance_records||[]).forEach(function(r){
+                var d=xR((r.physical_progress||0)-(r.financial_progress||0));
+                rows2.push(xRow([xCell('عملکرد','taga'),xCell(p.name||'','txt'),xCell(p.project_code||'','ctr'),
+                    xCell(dateCell(r.from_date),'ctr'),xCell(dateCell(r.to_date),'ctr'),xCell(r.subject||'','txt'),
+                    xCell(xR(r.physical_progress),'pgreen'),xCell(xR(r.financial_progress),'num'),
+                    xCell(d,xDevStyleFM(d))]));
+            });
+        });
+
+        var planPts=aggCurve(list,'progress_records');
+        var actPts=aggCurve(list,'performance_records');
+        var ds={};planPts.forEach(function(x){ds[x.date]=1});actPts.forEach(function(x){ds[x.date]=1});
+        var rows3=['<Row ss:Height="24"><Cell ss:StyleID="ttl" ss:MergeAcross="3"><Data ss:Type="String">'+xmlEsc('داده‌های منحنی S تجمعی (میانگین وزنی)')+'</Data></Cell></Row>','<Row/>',
+            xRow(['تاریخ','برنامه تجمعی ٪','عملکرد تجمعی ٪','انحراف تجمعی'].map(function(h){return xCell(h,'hdr')}),22)];
+        Object.keys(ds).sort().forEach(function(d){
+            var vp=valueAt(planPts,d),va=valueAt(actPts,d);
+            rows3.push(xRow([xCell(dateCell(d),'ctr'),xCell(vp,'pblue'),xCell(va,'pgreen'),
+                xCell(xR(va-vp),xDevStyle(va-vp))]));
+        });
+
+        var wb='<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
+            '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">\n'+
+            '<Styles>'+S+'</Styles>\n'+
+            xSheet('خلاصه پیشرفت',rows1,[35,160,80,95,60,65,50,70,70,60,60,60,75,75])+'\n'+
+            xSheet('دوره ها',rows2,[55,160,80,70,70,180,60,60,75])+'\n'+
+            xSheet('منحنی S',rows3,[85,80,80,80])+'\n'+
+            '</Workbook>';
+
+        downloadBlob(new Blob(['\ufeff'+wb],{type:'application/vnd.ms-excel;charset=utf-8'}),
+            'control-report-color-'+gTodayIso()+'.xls');
+        showToast('گزارش رنگی صادر شد ('+pN(list.length)+' پروژه • ۳ شیت)');
+    }catch(e){
+        console.error('exportControlReportXls:',e);
+        showToast('خطا در ساخت اکسل رنگی: '+e.message,'err');
+    }
+}
+
+/* ============================================================
+   بخش ۱۰: اکسل — خروجی کامل ۷شیتی (تمام جداول دیتابیس)
+============================================================ */
+var XL_HDRS=['نام پروژه','نوع','کد پروژه','شماره قرارداد','واحد اجرایی','وضعیت','شروع','پایان',
+             'شروع قرارداد','پایان قرارداد','بودجه','هزینه','پیشرفت فیزیکی','وزن'];
+var XL_COLS=[{wch:12},{wch:34},{wch:10},{wch:16},{wch:16},{wch:18},{wch:10},{wch:13},{wch:13},
+             {wch:13},{wch:13},{wch:14},{wch:14},{wch:13},{wch:9},{wch:20},{wch:20}];
+
+function ensureXLSX(){
+    return new Promise(function(resolve){
+        if(window.XLSX){resolve(true);return}
+        var s=document.createElement('script');
+        s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+        s.onload=function(){resolve(!!window.XLSX)};
+        s.onerror=function(){resolve(false)};
+        document.head.appendChild(s);
+    });
+}
+function gTodayIso(){
+    var n=new Date();
+    return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+function csvCell(v){
+    v=String(v==null?'':v);
+    return '"'+v.replace(/"/g,'""')+'"';
+}
+function downloadBlob(blob,name){
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=name;
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},800);
+}
+function dateCell(s){return s?toPDate(s):''}
+
+function sheetFromRows(hdrs,rows,cols){
+    var ws=XLSX.utils.aoa_to_sheet([hdrs].concat(rows));
+    ws['!cols']=cols||hdrs.map(function(){return{wch:16}});
+    if(rows.length)ws['!autofilter']={ref:XLSX.utils.encode_range(
+        {s:{r:0,c:0},e:{r:rows.length,c:hdrs.length-1}})};
+    return ws;
+}
+function childRows(list,key,fn){
+    var out=[];
+    list.forEach(function(p){(p[key]||[]).forEach(function(r){out.push(fn(p,r))})});
+    return out;
+}
+
+function exportCsvFallback(){
+    var lines=[XL_HDRS.map(csvCell).join(',')];
+    allProjects.forEach(function(p){
+        lines.push([p.name||'',typeFa(p.project_type),p.project_code||'',p.contract_number||'',p.manager||'',
+            statusFa(p.status),dateCell(p.start_date),dateCell(p.end_date),
+            dateCell(p.contract_start_date),dateCell(p.contract_end_date),
+            (+p.total_cost)||0,(+p.spent_cost)||0,(+p.progress_percent)||0,(+p.weight)||0
+        ].map(csvCell).join(','));
+    });
+    var blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+    downloadBlob(blob,'projects-'+gTodayIso()+'.csv');
+    showToast('کتابخانه اکسل در دسترس نبود — خروجی CSV خلاصه صادر شد','wrn');
+}
+
+async function exportToExcel(){
+    var ok=await ensureXLSX();
+    if(!ok){exportCsvFallback();return}
+    try{
+        var list=allProjects.slice();
+        var wb=XLSX.utils.book_new();
+        wb.Workbook={Views:[{RTL:true}]};
+
+        var PJ=['شناسه','نام پروژه','نوع','کد پروژه','شماره قرارداد','واحد اجرایی','وضعیت',
+                'شروع','پایان','شروع قرارداد','پایان قرارداد','بودجه','هزینه','پیشرفت فیزیکی','وزن','ایجاد','بروزرسانی'];
+        var pjRows=list.map(function(p){
+            return[p.id,p.name||'',typeFa(p.project_type),p.project_code||'',p.contract_number||'',p.manager||'',
+                statusFa(p.status),dateCell(p.start_date),dateCell(p.end_date),
+                dateCell(p.contract_start_date),dateCell(p.contract_end_date),
+                (+p.total_cost)||0,(+p.spent_cost)||0,(+p.progress_percent)||0,(+p.weight)||0,
+                (p.createdAt||'').replace('T',' ').replace('Z',''),(p.updatedAt||'').replace('T',' ').replace('Z','')];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(PJ,pjRows,XL_COLS),'پروژه ها');
+
+        var PR=['شناسه','نام پروژه','کد پروژه','از تاریخ','تا تاریخ','موضوع','پیشرفت فیزیکی','پیشرفت مالی','وزن','بودجه','هزینه'];
+        var prRows=childRows(list,'progress_records',function(p,r){
+            return[r.id,p.name||'',p.project_code||'',dateCell(r.from_date),dateCell(r.to_date),r.subject||'',
+                (+r.physical_progress)||0,(+r.financial_progress)||0,
+                (+r.weight)||0,(+r.budget_amt)||0,(+r.spent_amt)||0];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(PR,prRows),'برنامه');
+
+        var PF=PR.concat(['توضیحات']);
+        var pfRows=childRows(list,'performance_records',function(p,r){
+            return[r.id,p.name||'',p.project_code||'',dateCell(r.from_date),dateCell(r.to_date),r.subject||'',
+                (+r.physical_progress)||0,(+r.financial_progress)||0,
+                (+r.weight)||0,(+r.budget_amt)||0,(+r.spent_amt)||0,r.description||''];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(PF,pfRows),'عملکرد');
+
+        var TK=['شناسه','نام پروژه','کد پروژه','عنوان فعالیت','مسئول','بودجه','هزینه','شروع','پایان'];
+        var tkRows=childRows(list,'tasks',function(p,t){
+            return[t.id,p.name||'',p.project_code||'',t.name||'',t.owner||'',
+                (+t.budget_needed)||0,(+t.spent_cost)||0,
+                dateCell(t.start_date),dateCell(t.end_date)];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(TK,tkRows),'فعالیت ها');
+
+        var LT=['شناسه','نام پروژه','کد پروژه','نوع','شماره نامه','تاریخ نامه','موضوع','مخاطب'];
+        var ltRows=childRows(list,'letters',function(p,l){
+            return[l.id,p.name||'',p.project_code||'',(l.letter_type==='sadere'?'صادره':'وارده'),
+                l.letter_no||'',dateCell(l.letter_date),l.subject||'',l.recipient||''];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(LT,ltRows),'مکاتبات');
+
+        var NT=['شناسه','نام پروژه','کد پروژه','تاریخ','توضیحات'];
+        var ntRows=childRows(list,'notes',function(p,n){
+            return[n.id,p.name||'',p.project_code||'',dateCell(n.date),n.description||''];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(NT,ntRows),'یادداشت ها');
+
+        var DC=['شناسه','نام پروژه','نام فایل','حجم (بایت)','نوع MIME','تاریخ بارگذاری'];
+        var dcRows=childRows(list,'documents',function(p,d){
+            return[d.id,p.name||'',d.orig_name||'',(+d.file_size)||0,d.mime_type||'',
+                (d.uploaded_at||'').replace('T',' ').replace('Z','')];
+        });
+        XLSX.utils.book_append_sheet(wb,sheetFromRows(DC,dcRows),'مستندات');
+
+        XLSX.writeFile(wb,'database-full-'+gTodayIso()+'.xlsx');
+        showToast('خروجی کامل دیتابیس: '+pN(pjRows.length)+' پروژه • '+pN(prRows.length)+' برنامه • '+
+                  pN(pfRows.length)+' عملکرد • '+pN(tkRows.length)+' فعالیت • '+
+                  pN(ltRows.length)+' نامه • '+pN(ntRows.length)+' یادداشت • '+pN(dcRows.length)+' مستند');
+    }catch(e){
+        console.error('exportToExcel:',e);
+        showToast('خطا در ساخت اکسل: '+e.message,'err');
+    }
+}
+
+async function downloadSampleExcel(){
+    var ok=await ensureXLSX();
+    if(!ok){showToast('کتابخانه اکسل در دسترس نیست — اتصال اینترنت را بررسی کنید','err');return}
+    try{
+        var wb=XLSX.utils.book_new();
+        wb.Workbook={Views:[{RTL:true}]};
+        var ws1=XLSX.utils.aoa_to_sheet([XL_HDRS,
+            ['پروژه نمونه','عمرانی','PRJ-1403-999','CT-9999','واحد عمران','فعال',
+             dateCell('2025-01-01'),dateCell('2025-12-01'),
+             dateCell('2025-01-01'),dateCell('2025-11-25'),10000,2500,25,100]]);
+        ws1['!cols']=XL_COLS;
+        XLSX.utils.book_append_sheet(wb,ws1,'پروژه ها');
+        var CH=['کد پروژه','از تاریخ','تا تاریخ','موضوع','پیشرفت فیزیکی','پیشرفت مالی','وزن','بودجه','هزینه'];
+        var ws2=XLSX.utils.aoa_to_sheet([CH,
+            ['PRJ-1403-999',dateCell('2025-01-01'),dateCell('2025-06-01'),'فاز اول',15,12,40,4000,1200]]);
+        var ws3=XLSX.utils.aoa_to_sheet([CH.concat(['توضیحات']),
+            ['PRJ-1403-999',dateCell('2025-01-01'),dateCell('2025-06-01'),'فاز اول',14,12,40,4000,1150,'مطابق برنامه']]);
+        XLSX.utils.book_append_sheet(wb,ws2,'برنامه');
+        XLSX.utils.book_append_sheet(wb,ws3,'عملکرد');
+        XLSX.writeFile(wb,'sample-template.xlsx');
+        showToast('شیت نمونه دانلود شد');
+    }catch(e){
+        console.error('downloadSampleExcel:',e);
+        showToast('خطا در ساخت شیت نمونه: '+e.message,'err');
+    }
+}
+function anyDate(v){
+    if(!v)return'';
+    var s=String(v).trim();
+    if(s==='—'||s==='-')return'';
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    return shamsiToGreg(s)||'';
+}
+function readChildSheet(wb,name){
+    var out={},i=wb.SheetNames.indexOf(name);
+    if(i<0)return out;
+    var aoa=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:''});
+    if(aoa.length<2)return out;
+    var H=aoa[0].map(function(c){return String(c).trim()});
+    function col(n){return H.indexOf(n)}
+    var cc=col('کد پروژه');
+    if(cc<0)return out;
+    for(var r=1;r<aoa.length;r++){
+        var row=aoa[r],code=String(row[cc]||'').trim();
+        if(!code)continue;
+        (out[code]=out[code]||[]).push({
+            id:null,
+            from_date:anyDate(row[col('از تاریخ')]),to_date:anyDate(row[col('تا تاریخ')]),
+            subject:String(row[col('موضوع')]||'').trim(),
+            physical_progress:clamp100(+row[col('پیشرفت فیزیکی')]||0),
+            financial_progress:clamp100(+row[col('پیشرفت مالی')]||0),
+            weight:Math.max(0,+row[col('وزن')]||0),
+            budget_amt:Math.max(0,+row[col('بودجه')]||0),
+            spent_amt:Math.max(0,+row[col('هزینه')]||0),
+            description:String(row[col('توضیحات')]||'').trim()
+        });
+    }
+    return out;
+}
+async function importFromExcel(ev){
+    var file=ev.target.files[0];
+    ev.target.value='';
+    if(!file)return;
+    var ok=await ensureXLSX();
+    if(!ok){showToast('کتابخانه اکسل در دسترس نیست — اتصال اینترنت را بررسی کنید','err');return}
+    try{
+        var buf=await file.arrayBuffer();
+        var wb=XLSX.read(buf,{type:'array'});
+        if(!wb.SheetNames||!wb.SheetNames.length)throw new Error('فایل اکسل هیچ شیتی ندارد');
+        var aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+        var hIdx=-1;
+        for(var i=0;i<Math.min(aoa.length,10);i++){
+            if(aoa[i].some(function(c){return String(c).indexOf('نام پروژه')!==-1})){hIdx=i;break}
+        }
+        if(hIdx<0)throw new Error('ستون «نام پروژه» در فایل پیدا نشد');
+        var H=aoa[hIdx].map(function(c){return String(c).trim()});
+        function col(n){return H.indexOf(n)}
+        var cName=col('نام پروژه');
+        var plans=readChildSheet(wb,'برنامه'),perfs=readChildSheet(wb,'عملکرد');
+        var cnt=0;
+        for(var r=hIdx+1;r<aoa.length;r++){
+            var row=aoa[r];
+            if(!row[cName]||!String(row[cName]).trim())continue;
+            var code=String(row[col('کد پروژه')]||'').trim();
+            var stRaw=String(row[col('وضعیت')]||'');
+            await api('/projects',{method:'POST',body:JSON.stringify({
+                name:String(row[cName]).trim(),
+                project_type:String(row[col('نوع')]||'').indexOf('جاری')!==-1?'jari':'omrani',
+                project_code:code,
+                contract_number:String(row[col('شماره قرارداد')]||'').trim(),
+                manager:String(row[col('واحد اجرایی')]||'').trim(),
+                status:stRaw.indexOf('متوقف')!==-1?'hold':(stRaw.indexOf('انتظار')!==-1?'pending':'active'),
+                start_date:anyDate(row[col('شروع')]),end_date:anyDate(row[col('پایان')]),
+                contract_start_date:anyDate(row[col('شروع قرارداد')]),contract_end_date:anyDate(row[col('پایان قرارداد')]),
+                total_cost:+row[col('بودجه')]||0,spent_cost:+row[col('هزینه')]||0,
+                progress_percent:clamp100(+row[col('پیشرفت فیزیکی')]||0),
+                weight:Math.max(0,+row[col('وزن')]||0),
+                progress_records:code?(plans[code]||[]):[],
+                performance_records:code?(perfs[code]||[]):[],
+                tasks:[],letters:[],notes:[]
+            })});
+            cnt++;
+        }
+        await loadAll();
+        showToast(pN(cnt)+' پروژه از اکسل وارد شد');
+    }catch(e){
+        console.error('importFromExcel:',e);
+        showToast(e.message,'err');
+    }
+}
+
+/* ============================================================
+   بخش ۱۱: چاپ خلاصه پروژه
+============================================================ */
+function printProject(){
+    if(!currentProject)return;
+    var p=currentProject;
+    function infoRow(k,v){return'<tr><th>'+k+'</th><td>'+(v||'—')+'</td></tr>'}
+    function lightTable(hdrs,rows){
+        if(!rows.length)return'<p style="color:#555;font-size:10pt">ثبت نشده است</p>';
+        return'<table class="p-table p-tbl-light"><thead><tr>'+
+            hdrs.map(function(h){return'<th>'+h+'</th>'}).join('')+'</tr></thead><tbody>'+
+            rows.map(function(r){return'<tr>'+r.map(function(c){
+                return'<td>'+(c==null||c===''?'—':c)+'</td>'}).join('')+'</tr>'}).join('')+
+            '</tbody></table>';
+    }
+    var h='<div class="p-head"><div class="p-company">شرکت عمران و توسعه شرق رضوی</div>'+
+        '<div class="p-title">خلاصه پروژه: '+esc(p.name)+'</div>'+
+        '<div class="p-date">تاریخ چاپ: '+todayP()+'</div></div>';
+    h+='<div class="p-sec">مشخصات کلی</div><table class="p-table p-info"><tbody>'+
+        infoRow('کد پروژه',esc(p.project_code))+infoRow('شماره قرارداد',esc(p.contract_number))+
+        infoRow('واحد اجرایی',esc(p.manager))+infoRow('نوع پروژه',typeFa(p.project_type))+
+        infoRow('وضعیت',statusFa(p.status))+infoRow('وزن',pN(p.weight||0))+
+        infoRow('بازه پروژه',toPDate(p.start_date)+' تا '+toPDate(p.end_date))+
+        infoRow('بازه قرارداد',toPDate(p.contract_start_date)+' تا '+toPDate(p.contract_end_date))+
+        infoRow('بودجه (م.ر)',fmtMoney(p.total_cost))+infoRow('هزینه (م.ر)',fmtMoney(p.spent_cost))+
+        infoRow('پیشرفت فیزیکی',pPct(p.progress_percent))+'</tbody></table>';
+    h+='<div class="p-sec">برنامه</div>'+lightTable(['از','تا','موضوع','فیزیکی','مالی','وزن','بودجه','هزینه'],
+        (p.progress_records||[]).map(function(r){
+            return[toPDate(r.from_date),toPDate(r.to_date),esc(r.subject),pPct(r.physical_progress),
+                pPct(r.financial_progress),pN(r.weight||0),fmtMoney(r.budget_amt),fmtMoney(r.spent_amt)]}));
+    h+='<div class="p-sec">عملکرد</div>'+lightTable(['از','تا','موضوع','فیزیکی','مالی','بودجه','هزینه','توضیحات'],
+        (p.performance_records||[]).map(function(r){
+            return[toPDate(r.from_date),toPDate(r.to_date),esc(r.subject),pPct(r.physical_progress),
+                pPct(r.financial_progress),fmtMoney(r.budget_amt),fmtMoney(r.spent_amt),esc(r.description)]}));
+    h+='<div class="p-sec">مکاتبات</div>'+lightTable(['نوع','شماره','تاریخ','موضوع','مخاطب'],
+        (p.letters||[]).map(function(l){
+            return[l.letter_type==='sadere'?'صادره':'وارده',esc(l.letter_no),toPDate(l.letter_date),
+                esc(l.subject),esc(l.recipient)]}));
+    h+='<div class="p-sec">یادداشت‌ها</div>'+lightTable(['تاریخ','توضیحات'],
+        (p.notes||[]).map(function(n){return[toPDate(n.date),esc(n.description)]}));
+    h+='<div class="p-sec">فعالیت‌ها</div>'+lightTable(['عنوان','مسئول','بودجه','هزینه','بازه'],
+        (p.tasks||[]).map(function(t){
+            return[esc(t.name),esc(t.owner),fmtMoney(t.budget_needed),fmtMoney(t.spent_cost),
+                toPDate(t.start_date)+' — '+toPDate(t.end_date)]}));
+    h+='<div class="p-sign"><span>تهیه‌کننده: ..................</span><span>تأیید کننده: ..................</span></div>';
+    h+='<div class="p-foot">سیستم مدیریت پروژه — شرکت عمران و توسعه شرق رضوی</div>';
+    $('printArea').innerHTML=h;
+    window.print();
+}
+
+/* ============================================================
+   بخش ۱۲: راه‌اندازی
+============================================================ */
+document.addEventListener('DOMContentLoaded',function(){
+    initPickers();
+    syncGzBtns();
+    ['usernameInput','passwordInput'].forEach(function(id){
+        $(id).addEventListener('keydown',function(e){if(e.key==='Enter')handleLogin()});
+    });
+    document.addEventListener('keydown',function(e){
+        if(e.key!=='Escape')return;
+        if($('reportOverlay').classList.contains('open')){closeReportModal();return}
+        if($('analyticsOverlay').classList.contains('open')){closeAnalyticsModal();return}
+        if($('modalOverlay').classList.contains('open')){closeModal();return}
+        allPK.forEach(function(p){p.close()});
+    });
+    if(token){
+        api('/auth/me').then(function(r){currentUser=r.user;enterApp()})
+                       .catch(function(){showLogin()});
+    }else showLogin();
+});
+</script>
+</body>
+</html>
