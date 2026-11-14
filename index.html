@@ -489,7 +489,7 @@
                 </div>
                 <div class="grid-box" style="margin-bottom:0">
                     <table class="task-list-mini" style="margin-top:0">
-                        <thead><tr><th>تاریخ شروع</th><th>تا تاریخ</th><th>موضوع</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>وزن</th><th>بودجه</th><th>هزینه</th><th>انحراف</th><th>توضیحات</th><th style="width:110px">عملیات</th></tr></thead>
+                        <thead><tr><th>تاریخ شروع</th><th>تا تاریخ</th><th>موضوع</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>وزن</th><th>بودجه</th><th>هزینه</th><th>انحراف</th><th>توضیحات</th><th style="width:155px">عملیات</th></tr></thead>
                         <tbody id="perfGridBody"></tbody>
                     </table>
                 </div>
@@ -660,6 +660,67 @@
                     <tbody id="rpTableBody"></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ مودال ثبت پیشرفت ماهانه‌ی فعالیت (تب عملکرد) -->
+<div class="modal-overlay" id="activityProgressOverlay">
+    <div class="modal normal-size" style="max-width:1100px;height:90vh">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-chart-line" style="color:var(--pri);margin-left:5px"></i> <span id="apTitle">ثبت اطلاعات پیشرفت پروژه</span></h3>
+            <div style="display:flex;align-items:center;gap:6px">
+                <button class="close-btn x-close" onclick="closeActivityProgressModal()" title="بستن"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="sec-divider"><i class="fa-solid fa-plus" style="color:var(--pri)"></i> ثبت اطلاعات پیشرفت (ذخیره در دیتابیس)</div>
+            <div class="add-task-section">
+                <div class="form-grid">
+                    <div class="form-group"><label>سال شمسی *</label>
+                        <select id="apYear" class="form-control"></select>
+                    </div>
+                    <div class="form-group"><label>ماه شمسی *</label>
+                        <select id="apMonth" class="form-control"></select>
+                    </div>
+                    <div class="form-group"><label>پیشرفت فیزیکی (%)</label><input type="number" id="apPhysical" class="form-control" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>پیشرفت مالی (%)</label><input type="number" id="apFinancial" class="form-control" min="0" max="100" step="0.1"></div>
+                    <div class="form-group" style="grid-column:1/-1"><label>توضیحات</label><input type="text" id="apDesc" class="form-control" placeholder="توضیح پیشرفت این ماه..." maxlength="1000"></div>
+                </div>
+                <div class="form-btns">
+                    <button class="btn btn-primary btn-sm" id="apAddBtn" onclick="addActivityProgressRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
+                    <button class="btn btn-outline btn-sm" id="apCancelBtn" style="display:none" onclick="cancelActivityProgressEdit()"><i class="fa-solid fa-xmark"></i> انصراف ویرایش</button>
+                </div>
+            </div>
+
+            <div class="sec-divider"><i class="fa-solid fa-table-list" style="color:var(--pri)"></i> ردیف‌های پیشرفت ثبت‌شده</div>
+            <div class="grid-box" style="margin-bottom:0">
+                <table class="task-list-mini" style="margin-top:0">
+                    <thead><tr><th>سال</th><th>ماه</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>توضیحات</th><th>مستندات</th><th style="width:155px">عملیات</th></tr></thead>
+                    <tbody id="apGridBody"></tbody>
+                </table>
+            </div>
+
+            <div id="apDocsSection" style="display:none">
+                <div class="sec-divider" style="margin-top:.8rem"><i class="fa-solid fa-paperclip" style="color:var(--pri)"></i> مستندات پیشرفت ماهانه‌ی انتخاب‌شده</div>
+                <div class="add-task-section">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <input type="file" id="apDocFileInput" class="hidden-input" multiple onchange="uploadApDocFiles(this)">
+                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('apDocFileInput').click()"><i class="fa-solid fa-cloud-arrow-up"></i> بارگذاری فایل</button>
+                        <div class="loader" id="apDocLoader" style="border-top-color:var(--pri)"></div>
+                        <span style="font-size:.8rem;color:var(--gy)" id="apDocHint">یک ردیف پیشرفت را برای بارگذاری مستند انتخاب کنید.</span>
+                    </div>
+                </div>
+                <div class="grid-box" style="margin-bottom:0">
+                    <table class="task-list-mini" style="margin-top:0">
+                        <thead><tr><th>نام فایل</th><th style="width:100px">حجم</th><th style="width:140px">تاریخ بارگذاری</th><th style="width:110px">عملیات</th></tr></thead>
+                        <tbody id="apDocsGridBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeActivityProgressModal()">بستن</button>
         </div>
     </div>
 </div>
@@ -1072,9 +1133,20 @@ function renderTable(list){
 }
 function filterTable(q){
     q=(q||'').trim().toLowerCase();
+    var visible=0;
     document.querySelectorAll('#projectsTable tbody tr').forEach(function(tr){
-        tr.style.display=(!q||tr.innerText.toLowerCase().indexOf(q)!==-1)?'':'none';
+        var match=!q||tr.innerText.toLowerCase().indexOf(q)!==-1;
+        tr.style.display=match?'':'none';
+        if(match)visible++;
     });
+    /* ✅ هنگام جستجوی متنی، شمارش ردیف‌های یافت‌شده را در نوار فیلتر نشان بده */
+    var info=$('filterInfo');
+    if(!info)return;
+    if(q){
+        info.innerHTML='<i class="fa-solid fa-magnifying-glass" style="margin-left:4px;color:var(--pri)"></i>نتایج جستجو: <b>'+pN(visible)+'</b> از '+pN(allProjects.length)+' پروژه';
+    }else{
+        applyMainFilters();
+    }
 }
 async function quickDelete(id){
     var p=allProjects.find(function(x){return x.id===id});
@@ -1402,7 +1474,8 @@ function renderPerfGrid(){
               '<td>'+pPct(r.physical_progress)+'</td><td>'+pPct(r.financial_progress)+'</td>'+
               '<td>'+pN(r.weight||0)+'</td><td>'+fmtMoney(r.budget_amt)+'</td><td>'+fmtMoney(r.spent_amt)+'</td>'+
               '<td>'+devCell(progDev(r))+'</td><td>'+esc(r.description)+'</td>'+
-              '<td>'+rowBtnsPlain('editPerformance',i,'delPerformance')+'</td></tr>';
+              '<td>'+rowBtnsPlain('editPerformance',i,'delPerformance')+
+              ' <button class="btn btn-success btn-sm" onclick="openActivityProgressModal('+i+')" title="ثبت اطلاعات پیشرفت پروژه"><i class="fa-solid fa-chart-line"></i></button></td></tr>';
     }).join(''):emptyRow(11,'ردیفی برای عملکرد ثبت نشده است');
 }
 function resetPerfForm(){
@@ -1440,6 +1513,220 @@ function delPerformance(i){
     currentProject.performance_records.splice(i,1);
     if(editIdx.perf===i)cancelPerformanceEdit();
     renderPerfGrid();
+}
+
+/* ---------- ثبت پیشرفت ماهانه‌ی فعالیت (activity_progress) ---------- */
+var AP=null;            /* {perfIdx, selectedApId} وضعیت فعلی مودال */
+var AP_EDIT=null;       /* اندیس ردیف در حال ویرایش */
+/* پر کردن dropdown سال و ماه */
+var AP_YEARS=[];
+(function(){
+    var n=new Date(),tj=g2j(n.getFullYear(),n.getMonth()+1,n.getDate());
+    var curY=tj[0];
+    for(var y=curY-5;y<=curY+3;y++)AP_YEARS.push(y);
+})();
+/* همگام‌سازی لیست پروژه‌ها (allProjects) با سرور پس از تغییر مستقیم ap.
+   فقط پروژه‌ی فعلی را به‌روزرسانی می‌کند تا مودال باز بشود و ردیف‌های ap دیده شوند. */
+function syncCurrentProjectInList(){
+    if(!currentProject||!currentProject.id)return;
+    var idx=allProjects.findIndex(function(x){return x.id===currentProject.id});
+    if(idx>-1){
+        /* کپی عمیق از currentProject به allProjects */
+        allProjects[idx]=JSON.parse(JSON.stringify(currentProject));
+    }
+}
+function fillApSelects(){
+    var ys=$('apYear'),ms=$('apMonth');
+    ys.innerHTML=AP_YEARS.map(function(y){return'<option value="'+y+'">'+pN(y)+'</option>'}).join('');
+    ms.innerHTML=SP_M.map(function(m,i){return'<option value="'+(i+1)+'">'+m+'</option>'}).join('');
+    var n=new Date(),tj=g2j(n.getFullYear(),n.getMonth()+1,n.getDate());
+    ys.value=tj[0];ms.value=tj[1];
+}
+function openActivityProgressModal(perfIdx){
+    var p=currentProject;
+    if(!p){showToast('ابتدا یک پروژه باز کنید','err');return}
+    var r=p.performance_records&&p.performance_records[perfIdx];
+    if(!r){showToast('فعالیت یافت نشد','err');return}
+    /* برای ثبت پیشرفت، پروژه و ردیف عملکرد باید ذخیره شده باشند (شناسه داشته باشند) */
+    if(!p.id||!r.id){
+        showToast('ابتدا روی «ذخیره تغییرات» بزنید تا ردیف عملکرد در دیتابیس ذخیره شود، سپس دوباره دکمه‌ی ثبت پیشرفت را بزنید','wrn');
+        return;
+    }
+    AP={perfIdx:perfIdx,selectedApId:null};
+    AP_EDIT=null;
+    $('apTitle').textContent='ثبت اطلاعات پیشرفت پروژه — '+shortName(r.subject||r.from_date||'');
+    if(!r.progress)r.progress=[];
+    if(!$('apYear').options.length)fillApSelects();
+    resetApForm();
+    renderApGrid();
+    $('apDocsSection').style.display='none';
+    $('apDocHint').textContent='یک ردیف پیشرفت را برای بارگذاری مستند انتخاب کنید.';
+    $('activityProgressOverlay').classList.add('open');
+}
+function closeActivityProgressModal(){
+    $('activityProgressOverlay').classList.remove('open');
+    AP=null;AP_EDIT=null;
+}
+function resetApForm(){
+    fillApSelects();
+    $('apPhysical').value='';$('apFinancial').value='';$('apDesc').value='';
+    $('apCancelBtn').style.display='none';
+    $('apAddBtn').innerHTML='<i class="fa-solid fa-plus"></i> افزودن ردیف';
+    AP_EDIT=null;
+}
+function renderApGrid(){
+    var arr=(currentProject.performance_records[AP.perfIdx]||{}).progress||[];
+    $('apGridBody').innerHTML=arr.length?arr.map(function(r,i){
+        var isSel=(AP.selectedApId&&r.id===AP.selectedApId);
+        var docs=r.documents||[];
+        return'<tr style="'+(isSel?'background:#eef2ff':'')+'">'+
+              '<td>'+pN(r.year)+'</td><td>'+(SP_M[r.month-1]||'—')+'</td>'+
+              '<td>'+pPct(r.physical_progress)+'</td><td>'+pPct(r.financial_progress)+'</td>'+
+              '<td>'+esc(r.description||'')+'</td>'+
+              '<td>'+(docs.length?'<span style="color:var(--pri);font-weight:600">'+pN(docs.length)+' فایل</span>':'<span style="color:var(--gy);font-size:.8rem">—</span>')+'</td>'+
+              '<td>'+
+                '<button class="btn btn-outline btn-sm" onclick="editActivityProgressRow('+i+')" title="ویرایش"><i class="fa-solid fa-pen"></i></button> '+
+                '<button class="btn btn-outline btn-sm" onclick="delActivityProgressRow('+i+')" title="حذف"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button>'+
+                (r.id?' <button class="btn '+(isSel?'btn-primary':'btn-success')+' btn-sm" onclick="selectApRow('+i+')" title="مستندات"><i class="fa-solid fa-paperclip"></i></button>':'')+
+              '</td></tr>';
+    }).join(''):emptyRow(7,'هیچ پیشرفت ماهانه‌ای ثبت نشده است');
+}
+function selectApRow(i){
+    var arr=currentProject.performance_records[AP.perfIdx].progress||[];
+    var r=arr[i];
+    if(!r)return;
+    if(!r.id){showToast('این ردیف هنوز ذخیره نشده است؛ ابتدا پروژه را ذخیره کنید','wrn');return}
+    AP.selectedApId=r.id;
+    $('apDocsSection').style.display='';
+    $('apDocHint').textContent='مستندات ردیف: '+pN(r.year)+' / '+(SP_M[r.month-1]||'');
+    renderApGrid();
+    renderApDocsGrid();
+}
+async function addActivityProgressRow(){
+    if(!AP){showToast('مودال باز نیست','err');return}
+    var y=$('apYear').value,m=$('apMonth').value;
+    if(!y||!m){showToast('سال و ماه را انتخاب کنید','err');return}
+    var payload={year:+y,month:+m,
+        physical_progress:clamp100(num('apPhysical')),
+        financial_progress:clamp100(num('apFinancial')),
+        description:val('apDesc')};
+    var arr=currentProject.performance_records[AP.perfIdx].progress||(
+        currentProject.performance_records[AP.perfIdx].progress=[]);
+    var btn=$('apAddBtn');btn.disabled=true;
+    var origHTML=btn.innerHTML;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> در حال ذخیره...';
+    try{
+        var saved;
+        if(AP_EDIT!==null){
+            var old=arr[AP_EDIT];
+            if(!old||!old.id){showToast('ردیف اصلی یافت نشد','err');return}
+            saved=await api('/activity-progress/'+old.id,{method:'PUT',body:JSON.stringify(payload)});
+            saved.documents=old.documents||[];
+            arr[AP_EDIT]=saved;
+            showToast('ردیف پیشرفت در دیتابیس به‌روزرسانی شد');
+        }else{
+            var perfId=currentProject.performance_records[AP.perfIdx].id;
+            if(!perfId){showToast('ابتدا پروژه و ردیف عملکرد را ذخیره کنید','err');return}
+            saved=await api('/performance-records/'+perfId+'/activity-progress',{method:'POST',body:JSON.stringify(payload)});
+            saved.documents=[];
+            arr.push(saved);
+            showToast('ردیف پیشرفت در دیتابیس ذخیره شد');
+        }
+        syncCurrentProjectInList();
+        resetApForm();renderApGrid();
+    }catch(e){showToast(e.message,'err')}
+    finally{btn.disabled=false;btn.innerHTML=origHTML}
+}
+function editActivityProgressRow(i){
+    var arr=currentProject.performance_records[AP.perfIdx].progress||[];
+    var r=arr[i];if(!r)return;
+    $('apYear').value=r.year;$('apMonth').value=r.month;
+    $('apPhysical').value=r.physical_progress;$('apFinancial').value=r.financial_progress;
+    $('apDesc').value=r.description||'';
+    AP_EDIT=i;
+    $('apCancelBtn').style.display='';
+    $('apAddBtn').innerHTML='<i class="fa-solid fa-floppy-disk"></i> به‌روزرسانی';
+}
+function cancelActivityProgressEdit(){resetApForm()}
+function delActivityProgressRow(i){
+    var arr=currentProject.performance_records[AP.perfIdx].progress||[];
+    var r=arr[i];if(!r)return;
+    if(!confirm('این ردیف پیشرفت حذف شود؟ مستنداتش هم حذف خواهد شد.'))return;
+    if(!r.id){
+        /* فقط آیتم محلی (نباید رخ دهد چون همه از API ذخیره می‌شوند) */
+        arr.splice(i,1);
+        if(AP.selectedApId===r.id){AP.selectedApId=null;$('apDocsSection').style.display='none';}
+        renderApGrid();renderApDocsGrid();
+        showToast('ردیف پیشرفت حذف شد');
+        return;
+    }
+    api('/activity-progress/'+r.id,{method:'DELETE'}).then(function(){
+        arr.splice(i,1);
+        if(AP.selectedApId===r.id){AP.selectedApId=null;$('apDocsSection').style.display='none';}
+        syncCurrentProjectInList();
+        renderApGrid();renderApDocsGrid();
+        showToast('ردیف پیشرفت و مستنداتش از دیتابیس حذف شد');
+    }).catch(function(e){showToast(e.message,'err')});
+}
+/* ---------- مستندات پیشرفت ماهانه ---------- */
+function renderApDocsGrid(){
+    if(!AP||!AP.selectedApId){$('apDocsGridBody').innerHTML='';return}
+    var row=(currentProject.performance_records[AP.perfIdx].progress||[])
+        .find(function(x){return x.id===AP.selectedApId});
+    var docs=row?row.documents||[]:[];
+    $('apDocsGridBody').innerHTML=docs.length?docs.map(function(d){
+        return'<tr><td><i class="fa-regular fa-file" style="margin-left:4px;color:var(--gy)"></i>'+esc(d.orig_name)+'</td>'+
+              '<td>'+fmtSize(d.file_size)+'</td><td>'+toPDate((d.uploaded_at||'').slice(0,10))+'</td>'+
+              '<td><button class="btn btn-outline btn-sm" onclick="downloadApDoc('+d.id+')"><i class="fa-solid fa-download"></i></button> '+
+              '<button class="btn btn-outline btn-sm" onclick="deleteApDoc('+d.id+')"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button></td></tr>';
+    }).join(''):emptyRow(4,'فایلی بارگذاری نشده است');
+}
+async function uploadApDocFiles(input){
+    if(!AP||!AP.selectedApId){showToast('ابتدا یک ردیف پیشرفت انتخاب کنید','wrn');input.value='';return}
+    if(!input.files.length)return;
+    var fd=new FormData();
+    for(var i=0;i<input.files.length;i++)fd.append('files',input.files[i]);
+    $('apDocLoader').style.display='inline-block';
+    try{
+        var out=await api('/activity-progress/'+AP.selectedApId+'/documents',{method:'POST',body:fd});
+        /* پاسخ سرور: {documents:[{id, year, month, ..., documents:[doc,...]}]} */
+        var entries=out.documents||[];
+        var arr=currentProject.performance_records[AP.perfIdx].progress||[];
+        entries.forEach(function(e){
+            var t=arr.find(function(r){return r.id===e.id});
+            if(t)t.documents=e.documents||[];
+        });
+        syncCurrentProjectInList();
+        renderApGrid();renderApDocsGrid();
+        showToast(out.warning||(input.files.length+' فایل بارگذاری شد'),out.warning?'wrn':'ok');
+    }catch(e){showToast(e.message,'err')}
+    finally{$('apDocLoader').style.display='none';input.value=''}
+}
+async function deleteApDoc(did){
+    if(!confirm('این فایل حذف شود؟'))return;
+    try{
+        await api('/activity-progress/documents/'+did,{method:'DELETE'});
+        var arr=currentProject.performance_records[AP.perfIdx].progress||[];
+        var row=arr.find(function(r){return r.id===AP.selectedApId});
+        if(row)row.documents=(row.documents||[]).filter(function(d){return d.id!==did});
+        syncCurrentProjectInList();
+        renderApGrid();renderApDocsGrid();
+        showToast('فایل حذف شد');
+    }catch(e){showToast(e.message,'err')}
+}
+async function downloadApDoc(did){
+    try{
+        var res=await fetch('/api/activity-progress/documents/'+did,{headers:{'Authorization':'Bearer '+token}});
+        if(!res.ok)throw new Error('دانلود ناموفق بود');
+        var blob=await res.blob();
+        var arr=currentProject.performance_records[AP.perfIdx].progress||[];
+        var meta=null;
+        arr.forEach(function(r){(r.documents||[]).forEach(function(d){if(d.id===did)meta=d})});
+        var a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=(meta&&meta.orig_name)||'document';
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},800);
+    }catch(e){showToast(e.message,'err')}
 }
 function copyPlanToPerformance(){
     var src=currentProject.progress_records||[];
@@ -2368,6 +2655,7 @@ document.addEventListener('DOMContentLoaded',function(){
     });
     document.addEventListener('keydown',function(e){
         if(e.key!=='Escape')return;
+        if($('activityProgressOverlay').classList.contains('open')){closeActivityProgressModal();return}
         if($('reportOverlay').classList.contains('open')){closeReportModal();return}
         if($('analyticsOverlay').classList.contains('open')){closeAnalyticsModal();return}
         if($('modalOverlay').classList.contains('open')){closeModal();return}

@@ -253,12 +253,34 @@ def init_db():
             mime_type   TEXT    NOT NULL DEFAULT '',
             uploaded_at TEXT    NOT NULL DEFAULT ''
         );
+        CREATE TABLE IF NOT EXISTS activity_progress (
+            id                 INTEGER PRIMARY KEY,
+            performance_id     INTEGER NOT NULL,
+            project_id         INTEGER NOT NULL,
+            year                INTEGER NOT NULL DEFAULT 0,
+            month               INTEGER NOT NULL DEFAULT 0,
+            physical_progress   REAL    NOT NULL DEFAULT 0,
+            financial_progress  REAL    NOT NULL DEFAULT 0,
+            description         TEXT    NOT NULL DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS activity_progress_documents (
+            id               INTEGER PRIMARY KEY,
+            activity_progress_id INTEGER NOT NULL,
+            project_id       INTEGER NOT NULL,
+            orig_name        TEXT    NOT NULL,
+            stored_name      TEXT    NOT NULL,
+            file_size        INTEGER NOT NULL DEFAULT 0,
+            mime_type        TEXT    NOT NULL DEFAULT '',
+            uploaded_at      TEXT    NOT NULL DEFAULT ''
+        );
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
         CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_records(project_id);
         CREATE INDEX IF NOT EXISTS idx_perf_project ON performance_records(project_id);
         CREATE INDEX IF NOT EXISTS idx_letters_project ON project_letters(project_id);
         CREATE INDEX IF NOT EXISTS idx_notes_project ON project_notes(project_id);
         CREATE INDEX IF NOT EXISTS idx_docs_project ON project_documents(project_id);
+        CREATE INDEX IF NOT EXISTS idx_actprog_perf ON activity_progress(performance_id);
+        CREATE INDEX IF NOT EXISTS idx_actdoc_aprog ON activity_progress_documents(activity_progress_id);
     """)
     con.commit()
 
@@ -415,6 +437,7 @@ def performance_to_dict(row):
         "budget_amt": row["budget_amt"] if "budget_amt" in k else 0,
         "spent_amt": row["spent_amt"] if "spent_amt" in k else 0,
         "description": row["description"],
+        "progress": [],
     }
 
 
@@ -480,7 +503,45 @@ def _load_performance(db, pid):
     rows = db.execute(
         "SELECT * FROM performance_records WHERE project_id=? ORDER BY from_date, id", (pid,)
     ).fetchall()
-    return [performance_to_dict(r) for r in rows]
+    out = [performance_to_dict(r) for r in rows]
+    # ✅ بارگذاری پیشرفت‌های ماهانه هر فعالیت به همراه مستندات
+    for perf in out:
+        perf["progress"] = _load_activity_progress(db, perf["id"])
+    return out
+
+
+def _act_progress_to_dict(row):
+    return {
+        "id": row["id"],
+        "year": row["year"],
+        "month": row["month"],
+        "physical_progress": row["physical_progress"],
+        "financial_progress": row["financial_progress"],
+        "description": row["description"],
+        "documents": [],
+    }
+
+
+def _load_activity_progress(db, perf_id):
+    rows = db.execute(
+        "SELECT * FROM activity_progress WHERE performance_id=? ORDER BY year, month, id", (perf_id,)
+    ).fetchall()
+    out = [dict(_act_progress_to_dict(r)) for r in rows]
+    for ap in out:
+        ap["documents"] = _load_activity_progress_docs(db, ap["id"])
+    return out
+
+
+def _load_activity_progress_docs(db, ap_id):
+    rows = db.execute(
+        "SELECT * FROM activity_progress_documents WHERE activity_progress_id=? "
+        "ORDER BY uploaded_at DESC, id DESC", (ap_id,)
+    ).fetchall()
+    return [{
+        "id": r["id"], "orig_name": r["orig_name"],
+        "file_size": r["file_size"], "mime_type": r["mime_type"],
+        "uploaded_at": r["uploaded_at"],
+    } for r in rows]
 
 
 def _load_letters(db, pid):
@@ -567,16 +628,41 @@ def _insert_performance(db, pid, items):
         subj = clean_str(it.get("subject"), 300)
         if not fd or not td or not subj:
             continue
+        perf_id = it.get("id") or gen_id()
         db.execute(
             "INSERT OR IGNORE INTO performance_records "
             "(id,project_id,from_date,to_date,subject,physical_progress,financial_progress,weight,budget_amt,spent_amt,description) "
             "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (it.get("id") or gen_id(), pid, fd, td, subj,
+            (perf_id, pid, fd, td, subj,
              max(0, min(100, safe_num(it.get("physical_progress", 0)))),
              max(0, min(100, safe_num(it.get("financial_progress", 0)))),
              max(0, safe_num(it.get("weight", 0))),
              max(0, safe_num(it.get("budget_amt", 0))),
              max(0, safe_num(it.get("spent_amt", 0))),
+             clean_str(it.get("description"), 1000)),
+        )
+        # ✅ درج پیشرفت‌های ماهانه‌ی هر فعالیت
+        _insert_activity_progress(db, pid, perf_id, it.get("progress", []))
+
+
+def _insert_activity_progress(db, pid, perf_id, items):
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        try:
+            yr = int(it.get("year", 0) or 0)
+            mo = int(it.get("month", 0) or 0)
+        except (ValueError, TypeError):
+            continue
+        if yr < 1300 or mo < 1 or mo > 12:
+            continue
+        db.execute(
+            "INSERT OR IGNORE INTO activity_progress "
+            "(id,performance_id,project_id,year,month,physical_progress,financial_progress,description) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (it.get("id") or gen_id(), perf_id, pid, yr, mo,
+             max(0, min(100, safe_num(it.get("physical_progress", 0)))),
+             max(0, min(100, safe_num(it.get("financial_progress", 0)))),
              clean_str(it.get("description"), 1000)),
         )
 
@@ -619,12 +705,58 @@ def _replace_children(db, pid, d):
     _insert_tasks(db, pid, d.get("tasks", []))
     db.execute("DELETE FROM progress_records WHERE project_id=?", (pid,))
     _insert_progress(db, pid, d.get("progress_records", []))
+
+    # ✅ عملکرد و پیشرفت ماهانه:
+    # - رکوردهای عملکردی که در payload نیستند → حذف کامل (همراه با پیشرفت ماهانه و مستنداتشان)
+    # - رکوردهای موجود با شناسه‌ی ثابت → با INSERT OR IGNORE حفظ می‌شوند،
+    #   و پیشرفت‌های ماهانه‌ی آن‌ها هم با INSERT OR IGNORE و شناسه‌ی ثابت نگه داشته می‌شوند،
+    #   بنابراین مستندات فیزیکی متصل به آن شناسه‌ها از بین نمی‌روند.
+    perf_items = d.get("performance_records", [])
+    kept_perf_ids = set()
+    for it in perf_items:
+        if isinstance(it, dict) and it.get("id"):
+            try:
+                kept_perf_ids.add(int(it["id"]))
+            except (ValueError, TypeError):
+                pass
+    existing_perf = db.execute(
+        "SELECT id FROM performance_records WHERE project_id=?", (pid,)
+    ).fetchall()
+    for er in existing_perf:
+        if er["id"] not in kept_perf_ids:
+            _delete_activity_progress_by_perf(db, er["id"])
     db.execute("DELETE FROM performance_records WHERE project_id=?", (pid,))
-    _insert_performance(db, pid, d.get("performance_records", []))
+    _insert_performance(db, pid, perf_items)
+
     db.execute("DELETE FROM project_letters WHERE project_id=?", (pid,))
     _insert_letters(db, pid, d.get("letters", []))
     db.execute("DELETE FROM project_notes WHERE project_id=?", (pid,))
     _insert_notes(db, pid, d.get("notes", []))
+
+
+def _delete_activity_progress_by_perf(db, perf_id):
+    """حذف همه‌ی پیشرفت‌های ماهانه‌ی یک فعالیت و مستنداتشان (فایل فیزیکی هم)."""
+    ap_rows = db.execute(
+        "SELECT id FROM activity_progress WHERE performance_id=?", (perf_id,)
+    ).fetchall()
+    for ap in ap_rows:
+        _delete_activity_progress_docs(db, ap["id"])
+    db.execute("DELETE FROM activity_progress WHERE performance_id=?", (perf_id,))
+
+
+def _delete_activity_progress_docs(db, ap_id):
+    rows = db.execute(
+        "SELECT stored_name FROM activity_progress_documents WHERE activity_progress_id=?",
+        (ap_id,)
+    ).fetchall()
+    for r in rows:
+        p = UPLOAD_DIR / r["stored_name"]
+        try:
+            if p.exists():
+                p.unlink()
+        except OSError:
+            pass
+    db.execute("DELETE FROM activity_progress_documents WHERE activity_progress_id=?", (ap_id,))
 
 
 def _delete_project_files(db, pid):
@@ -637,6 +769,22 @@ def _delete_project_files(db, pid):
         except OSError:
             pass
     db.execute("DELETE FROM project_documents WHERE project_id=?", (pid,))
+    # ✅ حذف پیشرفت ماهانه‌ی فعالیت‌ها و مستنداتشان هنگام حذف پروژه
+    ap_rows = db.execute(
+        "SELECT apd.stored_name FROM activity_progress_documents apd "
+        "JOIN activity_progress ap ON apd.activity_progress_id=ap.id "
+        "WHERE ap.project_id=?", (pid,)
+    ).fetchall()
+    for r in ap_rows:
+        p = UPLOAD_DIR / r["stored_name"]
+        try:
+            if p.exists():
+                p.unlink()
+        except OSError:
+            pass
+    db.execute("DELETE FROM activity_progress_documents WHERE activity_progress_id IN "
+               "(SELECT id FROM activity_progress WHERE project_id=?)", (pid,))
+    db.execute("DELETE FROM activity_progress WHERE project_id=?", (pid,))
 
 
 init_db()
@@ -945,6 +1093,200 @@ def api_delete_doc(did):
     db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), row["project_id"]))
     db.commit()
     return jsonify({"ok": True})
+
+
+# ================================================================
+#  پیشرفت ماهانه‌ی فعالیت‌های عملکرد — آپلود / دانلود / حذف مستندات
+# ================================================================
+@app.route("/api/activity-progress/<int:apid>/documents", methods=["POST"])
+@token_required
+def api_upload_ap_docs(apid):
+    db = get_db()
+    ap = db.execute(
+        "SELECT id, performance_id, project_id FROM activity_progress WHERE id=?", (apid,)
+    ).fetchone()
+    if not ap:
+        return jsonify({"error": "رکورد پیشرفت یافت نشد"}), 404
+
+    files = request.files.getlist("files")
+    if not files:
+        return jsonify({"error": "فایلی ارسال نشده است"}), 400
+
+    saved, rejected = 0, []
+    for f in files:
+        orig = safe_filename(f.filename)
+        ext = orig.rsplit(".", 1)[-1].lower() if "." in orig else ""
+        if ext not in ALLOWED_DOCS:
+            rejected.append(orig)
+            continue
+        stored = f"{gen_id()}_{secrets.token_hex(4)}.{ext}"
+        dest = UPLOAD_DIR / stored
+        f.save(str(dest))
+        size = dest.stat().st_size
+        db.execute(
+            "INSERT INTO activity_progress_documents "
+            "(id,activity_progress_id,project_id,orig_name,stored_name,file_size,mime_type,uploaded_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (gen_id(), apid, ap["project_id"], orig, stored, size, f.mimetype or "", now_iso()),
+        )
+        saved += 1
+
+    db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), ap["project_id"]))
+    db.commit()
+
+    ap_rows = db.execute(
+        "SELECT * FROM activity_progress WHERE performance_id=?", (ap["performance_id"],)
+    ).fetchall()
+    out = [_act_progress_to_dict(r) for r in ap_rows]
+    for o in out:
+        o["documents"] = _load_activity_progress_docs(db, o["id"])
+    resp = {"documents": out}
+    if rejected:
+        resp["warning"] = "فرمت فایل(های) زیر مجاز نیست: " + "، ".join(rejected)
+    return jsonify(resp)
+
+
+@app.route("/api/activity-progress/documents/<int:did>", methods=["GET"])
+@token_required
+def api_download_ap_doc(did):
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM activity_progress_documents WHERE id=?", (did,)
+    ).fetchone()
+    if not row:
+        return jsonify({"error": "مستند یافت نشد"}), 404
+    path = UPLOAD_DIR / row["stored_name"]
+    if not path.exists():
+        return jsonify({"error": "فایل روی سرور یافت نشد"}), 404
+    return send_file(
+        str(path),
+        download_name=row["orig_name"],
+        as_attachment=True,
+        mimetype=row["mime_type"] or "application/octet-stream",
+    )
+
+
+@app.route("/api/activity-progress/documents/<int:did>", methods=["DELETE"])
+@token_required
+def api_delete_ap_doc(did):
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM activity_progress_documents WHERE id=?", (did,)
+    ).fetchone()
+    if not row:
+        return jsonify({"error": "مستند یافت نشد"}), 404
+    path = UPLOAD_DIR / row["stored_name"]
+    try:
+        if path.exists():
+            path.unlink()
+    except OSError:
+        pass
+    db.execute("DELETE FROM activity_progress_documents WHERE id=?", (did,))
+    db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), row["project_id"]))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/activity-progress/<int:apid>", methods=["DELETE"])
+@token_required
+def api_delete_activity_progress(apid):
+    """حذف یک رکورد پیشرفت ماهانه و تمام مستنداتش (فایل‌های فیزیکی هم)."""
+    db = get_db()
+    ap = db.execute(
+        "SELECT id, performance_id, project_id FROM activity_progress WHERE id=?", (apid,)
+    ).fetchone()
+    if not ap:
+        return jsonify({"error": "رکورد پیشرفت یافت نشد"}), 404
+    _delete_activity_progress_docs(db, apid)
+    db.execute("DELETE FROM activity_progress WHERE id=?", (apid,))
+    db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), ap["project_id"]))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/performance-records/<int:perf_id>/activity-progress", methods=["POST"])
+@token_required
+def api_create_activity_progress(perf_id):
+    """ایجاد مستقیم یک رکورد پیشرفت ماهانه‌ی جدید در دیتابیس."""
+    db = get_db()
+    perf = db.execute(
+        "SELECT id, project_id FROM performance_records WHERE id=?", (perf_id,)
+    ).fetchone()
+    if not perf:
+        return jsonify({"error": "رکورد عملکرد یافت نشد"}), 404
+    d = request.get_json(force=True, silent=True) or {}
+    try:
+        yr = int(d.get("year", 0) or 0)
+        mo = int(d.get("month", 0) or 0)
+    except (ValueError, TypeError):
+        return jsonify({"error": "سال و ماه باید عدد صحیح باشند"}), 400
+    if yr < 1300 or mo < 1 or mo > 12:
+        return jsonify({"error": "سال یا ماه نامعتبر است"}), 400
+    new_id = gen_id()
+    db.execute(
+        "INSERT INTO activity_progress "
+        "(id, performance_id, project_id, year, month, physical_progress, financial_progress, description) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (new_id, perf_id, perf["project_id"], yr, mo,
+         max(0, min(100, safe_num(d.get("physical_progress", 0)))),
+         max(0, min(100, safe_num(d.get("financial_progress", 0)))),
+         clean_str(d.get("description"), 1000)),
+    )
+    db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), perf["project_id"]))
+    db.commit()
+    row = db.execute("SELECT * FROM activity_progress WHERE id=?", (new_id,)).fetchone()
+    out = _act_progress_to_dict(row)
+    out["documents"] = []
+    return jsonify(out), 201
+
+
+@app.route("/api/activity-progress/<int:apid>", methods=["PUT"])
+@token_required
+def api_update_activity_progress(apid):
+    """به‌روزرسانی مستقیم یک رکورد پیشرفت ماهانه در دیتابیس."""
+    db = get_db()
+    ap = db.execute(
+        "SELECT * FROM activity_progress WHERE id=?", (apid,)
+    ).fetchone()
+    if not ap:
+        return jsonify({"error": "رکورد پیشرفت یافت نشد"}), 404
+    d = request.get_json(force=True, silent=True) or {}
+    fields, values = [], []
+    if "year" in d:
+        try:
+            yr = int(d["year"] or 0)
+        except (ValueError, TypeError):
+            return jsonify({"error": "سال باید عدد صحیح باشد"}), 400
+        if yr < 1300:
+            return jsonify({"error": "سال نامعتبر است"}), 400
+        fields.append("year=?"); values.append(yr)
+    if "month" in d:
+        try:
+            mo = int(d["month"] or 0)
+        except (ValueError, TypeError):
+            return jsonify({"error": "ماه باید عدد صحیح باشد"}), 400
+        if mo < 1 or mo > 12:
+            return jsonify({"error": "ماه نامعتبر است"}), 400
+        fields.append("month=?"); values.append(mo)
+    if "physical_progress" in d:
+        fields.append("physical_progress=?")
+        values.append(max(0, min(100, safe_num(d["physical_progress"]))))
+    if "financial_progress" in d:
+        fields.append("financial_progress=?")
+        values.append(max(0, min(100, safe_num(d["financial_progress"]))))
+    if "description" in d:
+        fields.append("description=?")
+        values.append(clean_str(d["description"], 1000))
+    if not fields:
+        return jsonify({"error": "فیلدی برای به‌روزرسانی ارسال نشده است"}), 400
+    values.append(apid)
+    db.execute("UPDATE activity_progress SET " + ",".join(fields) + " WHERE id=?", values)
+    db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), ap["project_id"]))
+    db.commit()
+    row = db.execute("SELECT * FROM activity_progress WHERE id=?", (apid,)).fetchone()
+    out = _act_progress_to_dict(row)
+    out["documents"] = _load_activity_progress_docs(db, apid)
+    return jsonify(out)
 
 
 # ================================================================
