@@ -356,6 +356,7 @@
             <table id="projectsTable">
                 <thead><tr><th>نام پروژه</th><th>نوع</th><th>کد پروژه</th><th>شماره قرارداد</th><th>واحد اجرایی</th><th>تاریخ شروع</th><th>تاریخ پایان</th><th>وضعیت</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>بودجه (م.ر)</th><th>هزینه (م.ر)</th><th>انحراف</th><th>عملیات</th></tr></thead>
                 <tbody></tbody>
+                <tfoot id="projectsTableFoot"></tfoot>
             </table>
         </div>
     </section>
@@ -437,6 +438,7 @@
                     <table class="task-list-mini" style="margin-top:0">
                         <thead><tr><th>نام فایل</th><th style="width:100px">حجم</th><th style="width:140px">تاریخ بارگذاری</th><th style="width:110px">عملیات</th></tr></thead>
                         <tbody id="docsGridBody"></tbody>
+                        <tfoot id="docsGridFoot"></tfoot>
                     </table>
                 </div>
             </div>
@@ -463,6 +465,7 @@
                     <table class="task-list-mini" style="margin-top:0">
                         <thead><tr><th>از تاریخ</th><th>تا تاریخ</th><th>موضوع</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>وزن</th><th>بودجه</th><th>هزینه</th><th>انحراف</th><th style="width:110px">عملیات</th></tr></thead>
                         <tbody id="progressGridBody"></tbody>
+                        <tfoot id="progressGridFoot"></tfoot>
                     </table>
                 </div>
             </div>
@@ -491,6 +494,7 @@
                     <table class="task-list-mini" style="margin-top:0">
                         <thead><tr><th>تاریخ شروع</th><th>تا تاریخ</th><th>موضوع</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>وزن</th><th>بودجه</th><th>هزینه</th><th>انحراف</th><th>توضیحات</th><th style="width:155px">عملیات</th></tr></thead>
                         <tbody id="perfGridBody"></tbody>
+                        <tfoot id="perfGridFoot"></tfoot>
                     </table>
                 </div>
             </div>
@@ -562,7 +566,7 @@
                 </div>
                 <div style="margin-top:1.2rem">
                     <h4 style="margin-bottom:6px;font-size:.92rem"><i class="fa-solid fa-list" style="color:var(--pri);margin-left:4px"></i> لیست فعالیت‌ها</h4>
-                    <table class="task-list-mini"><thead><tr><th>عنوان</th><th>مسئول</th><th>بودجه</th><th>هزینه</th><th>بازه زمانی</th><th style="width:110px">عملیات</th></tr></thead><tbody id="modalTaskListBody"></tbody></table>
+                    <table class="task-list-mini"><thead><tr><th>عنوان</th><th>مسئول</th><th>بودجه</th><th>هزینه</th><th>بازه زمانی</th><th style="width:110px">عملیات</th></tr></thead><tbody id="modalTaskListBody"></tbody><tfoot id="taskListFoot"></tfoot></table>
                 </div>
             </div>
         </div>
@@ -683,9 +687,16 @@
                     <div class="form-group"><label>ماه شمسی *</label>
                         <select id="apMonth" class="form-control"></select>
                     </div>
-                    <div class="form-group"><label>پیشرفت فیزیکی (%)</label><input type="number" id="apPhysical" class="form-control" min="0" max="100" step="0.1"></div>
-                    <div class="form-group"><label>پیشرفت مالی (%)</label><input type="number" id="apFinancial" class="form-control" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>پیشرفت فیزیکی (%)</label><input type="number" id="apPhysical" class="form-control" min="0" max="100" step="0.1" oninput="clampApInput(this)"></div>
+                    <div class="form-group"><label>پیشرفت مالی (%)</label><input type="number" id="apFinancial" class="form-control" min="0" max="100" step="0.1" oninput="clampApInput(this)"></div>
                     <div class="form-group" style="grid-column:1/-1"><label>توضیحات</label><input type="text" id="apDesc" class="form-control" placeholder="توضیح پیشرفت این ماه..." maxlength="1000"></div>
+                    <div class="form-group" style="grid-column:1/-1"><label>آپلود فایل مستندات (اختیاری)</label>
+                        <input type="file" id="apFormFiles" class="hidden-input" multiple onchange="onApFormFilesChange(this)">
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('apFormFiles').click()"><i class="fa-solid fa-paperclip"></i> انتخاب فایل مستند</button>
+                            <span id="apFormFilesHint" style="font-size:.82rem;color:var(--gy)">فایلی انتخاب نشده</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-btns">
                     <button class="btn btn-primary btn-sm" id="apAddBtn" onclick="addActivityProgressRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
@@ -698,6 +709,12 @@
                 <table class="task-list-mini" style="margin-top:0">
                     <thead><tr><th>سال</th><th>ماه</th><th>پیشرفت فیزیکی</th><th>پیشرفت مالی</th><th>توضیحات</th><th>مستندات</th><th style="width:155px">عملیات</th></tr></thead>
                     <tbody id="apGridBody"></tbody>
+                    <tfoot><tr id="apTotalsRow" style="background:#f8fafc;font-weight:700;border-top:2px solid var(--pri)">
+                        <td colspan="2" style="text-align:left;color:var(--gy);font-size:.85rem">جمع کل</td>
+                        <td id="apTotalPhysical">۰٪</td>
+                        <td id="apTotalFinancial">۰٪</td>
+                        <td colspan="3" style="color:var(--gy);font-size:.82rem" id="apTotalsNote"></td>
+                    </tr></tfoot>
                 </table>
             </div>
 
@@ -715,6 +732,7 @@
                     <table class="task-list-mini" style="margin-top:0">
                         <thead><tr><th>نام فایل</th><th style="width:100px">حجم</th><th style="width:140px">تاریخ بارگذاری</th><th style="width:110px">عملیات</th></tr></thead>
                         <tbody id="apDocsGridBody"></tbody>
+                        <tfoot id="apDocsGridFoot"></tfoot>
                     </table>
                 </div>
             </div>
@@ -923,6 +941,33 @@ function shortName(n){n=String(n||'');return n.length>18?n.slice(0,18)+'…':n}
 function emptyRow(span,msg){
     return'<tr><td colspan="'+span+'" style="text-align:center;color:var(--gy);padding:1rem">'+msg+'</td></tr>';
 }
+/* ساخت ردیف جمع کل برای پایین گرید (tfoot)
+   - totalCols: تعداد کل ستون‌های جدول
+   - labelSpan: تعداد ستون‌هایی که در ابتدا برای «جمع کل» ادغام می‌شوند
+   - values: آرایه‌ی مقادیر (رشته‌ی HTML) به ترتیب برای ستون‌های بعد از labelSpan
+     اگر مقداری null باشد، سلول خالی رندر می‌شود.
+   ستون‌های باقی‌مانده (انتهای جدول) با colspan آخرین جمع می‌شوند تا همیشه totalCols سلول بسازد.
+   نکته: ردیف فقط زمانی نمایش داده می‌شود که allValuesEmpty=false باشد. */
+function tfootRow(totalCols,labelSpan,values,opts){
+    opts=opts||{};
+    var anyValue=values.some(function(v){return v!==null&&v!==undefined&&v!==''});
+    var labelTxt=opts.label||'جمع کل';
+    var style=opts.style||'background:#f8fafc;font-weight:700;border-top:2px solid var(--pri)';
+    if(!anyValue){
+        /* ردیف خالی برای حفظ ساختار جدول */
+        return'<tr style="'+style+';color:var(--gy);font-size:.85rem"><td colspan="'+totalCols+'" style="text-align:right">'+labelTxt+'</td></tr>';
+    }
+    var usedCells=1+values.length;
+    var trailingSpan=totalCols-usedCells;
+    var html='<tr style="'+style+'">'+
+        '<td colspan="'+labelSpan+'" style="text-align:left;color:var(--gy);font-size:.85rem">'+labelTxt+'</td>';
+    values.forEach(function(v){
+        html+='<td>'+(v===null||v===undefined?'<span style="color:var(--gy)">—</span>':v)+'</td>';
+    });
+    if(trailingSpan>0)html+='<td colspan="'+trailingSpan+'"></td>';
+    html+='</tr>';
+    return html;
+}
 function todayIso(){
     var n=new Date();
     return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
@@ -1127,9 +1172,34 @@ function tableRow(p){
 }
 function renderTable(list){
     list=list||filteredProjects();
-    document.querySelector('#projectsTable tbody').innerHTML=
-        list.length?list.map(tableRow).join(''):
-        emptyRow(14,'پروژه‌ای با این فیلترها یافت نشد');
+    var foot=$('projectsTableFoot');
+    if(!list.length){
+        document.querySelector('#projectsTable tbody').innerHTML=emptyRow(14,'پروژه‌ای با این فیلترها یافت نشد');
+        if(foot)foot.innerHTML='';
+        return;
+    }
+    document.querySelector('#projectsTable tbody').innerHTML=list.map(tableRow).join('');
+    /* محاسبه‌ی جمع/میانگین ستون‌های عددی */
+    var n=list.length,phSum=0,finSum=0,budSum=0,spentSum=0,devSum=0;
+    list.forEach(function(p){
+        var fin=p.total_cost>0?(p.spent_cost*100/p.total_cost):0;
+        phSum+=(p.progress_percent||0);
+        finSum+=fin;
+        budSum+=(p.total_cost||0);
+        spentSum+=(p.spent_cost||0);
+        devSum+=round1(fin-(p.progress_percent||0));
+    });
+    if(foot){
+        var phAvg=n?round1(phSum/n):0, finAvg=n?round1(finSum/n):0;
+        foot.innerHTML=tfootRow(14,8,[
+            /* پیشرفت فیزیکی، پیشرفت مالی، بودجه، هزینه، انحراف — عملیات خالی */
+            '<span style="color:var(--pri)">'+pPct(phAvg)+'</span>',
+            '<span style="color:var(--pri)">'+pPct(finAvg)+'</span>',
+            fmtMoney(budSum),
+            fmtMoney(spentSum),
+            devCell(n?round1(devSum/n):0)
+        ]);
+    }
 }
 function filterTable(q){
     q=(q||'').trim().toLowerCase();
@@ -1311,6 +1381,12 @@ function renderDocsGrid(){
               '<td><button class="btn btn-outline btn-sm" onclick="downloadDoc('+d.id+')"><i class="fa-solid fa-download"></i></button> '+
               '<button class="btn btn-outline btn-sm" onclick="deleteDoc('+d.id+')"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button></td></tr>';
     }).join(''):emptyRow(4,'فایلی بارگذاری نشده است');
+    var foot=$('docsGridFoot');
+    if(foot){
+        var total=0;
+        arr.forEach(function(d){total+=(d.file_size||0)});
+        foot.innerHTML=arr.length?tfootRow(4,1,[fmtSize(total)],{label:'جمع حجم کل'}):'';
+    }
 }
 async function uploadDocFiles(input){
     if(!currentProject||!currentProject.id){
@@ -1429,6 +1505,18 @@ function renderProgressGrid(){
               '<td>'+devCell(progDev(r))+'</td>'+
               '<td>'+rowBtnsPlain('editProgress',i,'delProgress')+'</td></tr>';
     }).join(''):emptyRow(10,'ردیفی برای برنامه ثبت نشده است');
+    var foot=$('progressGridFoot');
+    if(foot){
+        var ph=0,fin=0,w=0,b=0,s=0;
+        arr.forEach(function(r){
+            ph+=(r.physical_progress||0);fin+=(r.financial_progress||0);
+            w+=(r.weight||0);b+=(r.budget_amt||0);s+=(r.spent_amt||0);
+        });
+        foot.innerHTML=arr.length?tfootRow(10,3,[
+            pPct(ph),pPct(fin),pN(round1(w)),fmtMoney(b),fmtMoney(s),
+            devCell(round1(ph-fin))
+        ]):'';
+    }
 }
 function resetProgForm(){
     ['prFromDate','prToDate'].forEach(clearDate);
@@ -1477,6 +1565,18 @@ function renderPerfGrid(){
               '<td>'+rowBtnsPlain('editPerformance',i,'delPerformance')+
               ' <button class="btn btn-success btn-sm" onclick="openActivityProgressModal('+i+')" title="ثبت اطلاعات پیشرفت پروژه"><i class="fa-solid fa-chart-line"></i></button></td></tr>';
     }).join(''):emptyRow(11,'ردیفی برای عملکرد ثبت نشده است');
+    var foot=$('perfGridFoot');
+    if(foot){
+        var ph=0,fin=0,w=0,b=0,s=0;
+        arr.forEach(function(r){
+            ph+=(r.physical_progress||0);fin+=(r.financial_progress||0);
+            w+=(r.weight||0);b+=(r.budget_amt||0);s+=(r.spent_amt||0);
+        });
+        foot.innerHTML=arr.length?tfootRow(11,3,[
+            pPct(ph),pPct(fin),pN(round1(w)),fmtMoney(b),fmtMoney(s),
+            devCell(round1(ph-fin))
+        ]):'';
+    }
 }
 function resetPerfForm(){
     ['pfFromDate','pfToDate'].forEach(clearDate);
@@ -1570,9 +1670,49 @@ function closeActivityProgressModal(){
 function resetApForm(){
     fillApSelects();
     $('apPhysical').value='';$('apFinancial').value='';$('apDesc').value='';
+    var fi=$('apFormFiles');if(fi)fi.value='';
+    var hint=$('apFormFilesHint');if(hint)hint.textContent='فایلی انتخاب نشده';
     $('apCancelBtn').style.display='none';
     $('apAddBtn').innerHTML='<i class="fa-solid fa-plus"></i> افزودن ردیف';
     AP_EDIT=null;
+}
+/* محدود کردن مقدار فیلد عددی به ۰..۱۰۰ هنگام تایپ */
+function clampApInput(el){
+    var v=parseFloat(el.value);
+    if(isNaN(v))return;
+    if(v<0)el.value=0;
+    else if(v>100)el.value=100;
+}
+/* نمایش نام فایل‌های انتخاب‌شده در فیلد آپلود داخل فرم */
+function onApFormFilesChange(input){
+    var hint=$('apFormFilesHint');
+    if(!hint)return;
+    if(!input.files||!input.files.length){hint.textContent='فایلی انتخاب نشده';return}
+    hint.textContent=pN(input.files.length)+' فایل انتخاب شد: '+Array.prototype.slice.call(input.files).map(function(f){return f.name}).join('، ');
+}
+/* محاسبه‌ی جمع فیزیکی/مالی ردیف‌های موجود */
+function apColumnTotals(){
+    var arr=(currentProject.performance_records[AP.perfIdx]||{}).progress||[];
+    var p=0,f=0;
+    arr.forEach(function(r){
+        p+=parseFloat(r.physical_progress)||0;
+        f+=parseFloat(r.financial_progress)||0;
+    });
+    return{physical:p,financial:f};
+}
+/* رندر سطر جمع پایین گرید + هشدار سرریز */
+function renderApTotals(){
+    if(!AP)return;
+    var t=apColumnTotals();
+    var pCell=$('apTotalPhysical'),fCell=$('apTotalFinancial'),note=$('apTotalsNote');
+    if(pCell)pCell.innerHTML='<span style="color:'+(t.physical>100?'var(--err)':'var(--ok)')+'">'+pPct(t.physical)+'</span>';
+    if(fCell)fCell.innerHTML='<span style="color:'+(t.financial>100?'var(--err)':'var(--ok)')+'">'+pPct(t.financial)+'</span>';
+    if(note){
+        var warn=[];
+        if(t.physical>100)warn.push('جمع فیزیکی از ۱۰۰ بیشتر است');
+        if(t.financial>100)warn.push('جمع مالی از ۱۰۰ بیشتر است');
+        note.textContent=warn.length?'⚠ '+warn.join(' — '):'';
+    }
 }
 function renderApGrid(){
     var arr=(currentProject.performance_records[AP.perfIdx]||{}).progress||[];
@@ -1590,6 +1730,7 @@ function renderApGrid(){
                 (r.id?' <button class="btn '+(isSel?'btn-primary':'btn-success')+' btn-sm" onclick="selectApRow('+i+')" title="مستندات"><i class="fa-solid fa-paperclip"></i></button>':'')+
               '</td></tr>';
     }).join(''):emptyRow(7,'هیچ پیشرفت ماهانه‌ای ثبت نشده است');
+    renderApTotals();
 }
 function selectApRow(i){
     var arr=currentProject.performance_records[AP.perfIdx].progress||[];
@@ -1606,31 +1747,60 @@ async function addActivityProgressRow(){
     if(!AP){showToast('مودال باز نیست','err');return}
     var y=$('apYear').value,m=$('apMonth').value;
     if(!y||!m){showToast('سال و ماه را انتخاب کنید','err');return}
-    var payload={year:+y,month:+m,
-        physical_progress:clamp100(num('apPhysical')),
-        financial_progress:clamp100(num('apFinancial')),
-        description:val('apDesc')};
+    var phys=clamp100(num('apPhysical'));
+    var fin=clamp100(num('apFinancial'));
+    $('apPhysical').value=phys;$('apFinancial').value=fin;
     var arr=currentProject.performance_records[AP.perfIdx].progress||(
         currentProject.performance_records[AP.perfIdx].progress=[]);
+    /* اعتبارسنجی جمع ستون ≤ ۱۰۰ */
+    var totals=apColumnTotals();
+    if(AP_EDIT!==null){
+        var cur=arr[AP_EDIT]||{};
+        totals.physical-=(parseFloat(cur.physical_progress)||0);
+        totals.financial-=(parseFloat(cur.financial_progress)||0);
+    }
+    if(totals.physical+phys>100){
+        showToast('جمع پیشرفت فیزیکی از ۱۰۰ بیشتر می‌شود (تاکنون '+pPct(totals.physical)+'؛ حداکثر مجاز این ردیف: '+pPct(Math.max(0,100-totals.physical))+')','err');
+        return;
+    }
+    if(totals.financial+fin>100){
+        showToast('جمع پیشرفت مالی از ۱۰۰ بیشتر می‌شود (تاکنون '+pPct(totals.financial)+'؛ حداکثر مجاز این ردیف: '+pPct(Math.max(0,100-totals.financial))+')','err');
+        return;
+    }
+    var fileInput=$('apFormFiles');
+    var hasFiles=fileInput&&fileInput.files&&fileInput.files.length;
     var btn=$('apAddBtn');btn.disabled=true;
     var origHTML=btn.innerHTML;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> در حال ذخیره...';
     try{
-        var saved;
+        var saved,warn;
+        var buildBody=function(){
+            var fd=new FormData();
+            fd.append('year',+y);fd.append('month',+m);
+            fd.append('physical_progress',phys);fd.append('financial_progress',fin);
+            fd.append('description',val('apDesc'));
+            if(hasFiles)for(var i=0;i<fileInput.files.length;i++)fd.append('files',fileInput.files[i]);
+            return fd;
+        };
+        var reqOpts=hasFiles?{method:'',body:buildBody()}:{method:'',body:JSON.stringify({year:+y,month:+m,physical_progress:phys,financial_progress:fin,description:val('apDesc')})};
         if(AP_EDIT!==null){
             var old=arr[AP_EDIT];
             if(!old||!old.id){showToast('ردیف اصلی یافت نشد','err');return}
-            saved=await api('/activity-progress/'+old.id,{method:'PUT',body:JSON.stringify(payload)});
-            saved.documents=old.documents||[];
+            reqOpts.method='PUT';
+            saved=await api('/activity-progress/'+old.id,reqOpts);
+            /* در حالت بدون فایل، PUT فقط فیلدهای ارسالی را برمی‌گرداند؛ documents موجود نگه داشته می‌شود */
+            if(!hasFiles)saved.documents=old.documents||[];
+            showToast('ردیف پیشرفت در دیتابیس به‌روزرسانی شد'+(hasFiles?' (همراه با مستندات)':''));
             arr[AP_EDIT]=saved;
-            showToast('ردیف پیشرفت در دیتابیس به‌روزرسانی شد');
         }else{
             var perfId=currentProject.performance_records[AP.perfIdx].id;
             if(!perfId){showToast('ابتدا پروژه و ردیف عملکرد را ذخیره کنید','err');return}
-            saved=await api('/performance-records/'+perfId+'/activity-progress',{method:'POST',body:JSON.stringify(payload)});
-            saved.documents=[];
+            reqOpts.method='POST';
+            saved=await api('/performance-records/'+perfId+'/activity-progress',reqOpts);
+            if(!saved.documents)saved.documents=[];
+            showToast('ردیف پیشرفت در دیتابیس ذخیره شد'+(hasFiles?' (همراه با مستندات)':''));
             arr.push(saved);
-            showToast('ردیف پیشرفت در دیتابیس ذخیره شد');
         }
+        if(saved&&saved.warning)showToast(saved.warning,'wrn');
         syncCurrentProjectInList();
         resetApForm();renderApGrid();
     }catch(e){showToast(e.message,'err')}
@@ -1669,7 +1839,7 @@ function delActivityProgressRow(i){
 }
 /* ---------- مستندات پیشرفت ماهانه ---------- */
 function renderApDocsGrid(){
-    if(!AP||!AP.selectedApId){$('apDocsGridBody').innerHTML='';return}
+    if(!AP||!AP.selectedApId){$('apDocsGridBody').innerHTML='';var f0=$('apDocsGridFoot');if(f0)f0.innerHTML='';return}
     var row=(currentProject.performance_records[AP.perfIdx].progress||[])
         .find(function(x){return x.id===AP.selectedApId});
     var docs=row?row.documents||[]:[];
@@ -1679,6 +1849,12 @@ function renderApDocsGrid(){
               '<td><button class="btn btn-outline btn-sm" onclick="downloadApDoc('+d.id+')"><i class="fa-solid fa-download"></i></button> '+
               '<button class="btn btn-outline btn-sm" onclick="deleteApDoc('+d.id+')"><i class="fa-solid fa-trash" style="color:var(--err)"></i></button></td></tr>';
     }).join(''):emptyRow(4,'فایلی بارگذاری نشده است');
+    var foot=$('apDocsGridFoot');
+    if(foot){
+        var total=0;
+        docs.forEach(function(d){total+=(d.file_size||0)});
+        foot.innerHTML=docs.length?tfootRow(4,1,[fmtSize(total)],{label:'جمع حجم کل'}):'';
+    }
 }
 async function uploadApDocFiles(input){
     if(!AP||!AP.selectedApId){showToast('ابتدا یک ردیف پیشرفت انتخاب کنید','wrn');input.value='';return}
@@ -1793,6 +1969,12 @@ function renderTaskList(){
               '<td>'+toPDate(t.start_date)+' — '+toPDate(t.end_date)+'</td>'+
               '<td>'+rowBtnsPlain('editTask',i,'delTask')+'</td></tr>';
     }).join(''):emptyRow(6,'فعالیتی ثبت نشده است');
+    var foot=$('taskListFoot');
+    if(foot){
+        var b=0,s=0;
+        arr.forEach(function(t){b+=(t.budget_needed||0);s+=(t.spent_cost||0)});
+        foot.innerHTML=arr.length?tfootRow(6,2,[fmtMoney(b),fmtMoney(s)]):'';
+    }
 }
 function resetTaskForm(){
     ['newTaskName','newTaskOwner','newTaskBudget','newTaskSpent'].forEach(function(id){$(id).value=''});

@@ -1207,50 +1207,96 @@ def api_delete_activity_progress(apid):
 @app.route("/api/performance-records/<int:perf_id>/activity-progress", methods=["POST"])
 @token_required
 def api_create_activity_progress(perf_id):
-    """ایجاد مستقیم یک رکورد پیشرفت ماهانه‌ی جدید در دیتابیس."""
+    """ایجاد مستقیم یک رکورد پیشرفت ماهانه‌ی جدید در دیتابیس (با آپلود همزمان مستندات)."""
     db = get_db()
     perf = db.execute(
         "SELECT id, project_id FROM performance_records WHERE id=?", (perf_id,)
     ).fetchone()
     if not perf:
         return jsonify({"error": "رکورد عملکرد یافت نشد"}), 404
-    d = request.get_json(force=True, silent=True) or {}
+    # پشتیبانی از JSON و multipart (هنگام آپلود فایل همراه با ذخیره‌ی ردیف)
+    if request.files:
+        g_year = request.form.get("year")
+        g_month = request.form.get("month")
+        g_phys = request.form.get("physical_progress")
+        g_fin = request.form.get("financial_progress")
+        g_desc = request.form.get("description")
+    else:
+        d = request.get_json(force=True, silent=True) or {}
+        g_year = d.get("year")
+        g_month = d.get("month")
+        g_phys = d.get("physical_progress")
+        g_fin = d.get("financial_progress")
+        g_desc = d.get("description")
     try:
-        yr = int(d.get("year", 0) or 0)
-        mo = int(d.get("month", 0) or 0)
+        yr = int(g_year or 0)
+        mo = int(g_month or 0)
     except (ValueError, TypeError):
         return jsonify({"error": "سال و ماه باید عدد صحیح باشند"}), 400
     if yr < 1300 or mo < 1 or mo > 12:
         return jsonify({"error": "سال یا ماه نامعتبر است"}), 400
+    phys = max(0, min(100, safe_num(g_phys)))
+    fin = max(0, min(100, safe_num(g_fin)))
     new_id = gen_id()
     db.execute(
         "INSERT INTO activity_progress "
         "(id, performance_id, project_id, year, month, physical_progress, financial_progress, description) "
         "VALUES (?,?,?,?,?,?,?,?)",
-        (new_id, perf_id, perf["project_id"], yr, mo,
-         max(0, min(100, safe_num(d.get("physical_progress", 0)))),
-         max(0, min(100, safe_num(d.get("financial_progress", 0)))),
-         clean_str(d.get("description"), 1000)),
+        (new_id, perf_id, perf["project_id"], yr, mo, phys, fin, clean_str(g_desc, 1000)),
     )
+    # ذخیره‌ی مستندات همراه (در همان تراکنش)
+    docs, rejected = [], []
+    if request.files:
+        for f in request.files.getlist("files"):
+            if not f or not f.filename:
+                continue
+            orig = safe_filename(f.filename)
+            ext = orig.rsplit(".", 1)[-1].lower() if "." in orig else ""
+            if ext not in ALLOWED_DOCS:
+                rejected.append(orig)
+                continue
+            stored = f"{gen_id()}_{secrets.token_hex(4)}.{ext}"
+            dest = UPLOAD_DIR / stored
+            f.save(str(dest))
+            size = dest.stat().st_size
+            did = gen_id()
+            db.execute(
+                "INSERT INTO activity_progress_documents "
+                "(id,activity_progress_id,project_id,orig_name,stored_name,file_size,mime_type,uploaded_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (did, new_id, perf["project_id"], orig, stored, size, f.mimetype or "", now_iso()),
+            )
+            docs.append({"id": did, "orig_name": orig, "file_size": size,
+                         "mime_type": f.mimetype or "", "uploaded_at": now_iso()})
     db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), perf["project_id"]))
     db.commit()
     row = db.execute("SELECT * FROM activity_progress WHERE id=?", (new_id,)).fetchone()
     out = _act_progress_to_dict(row)
-    out["documents"] = []
+    out["documents"] = docs or _load_activity_progress_docs(db, new_id)
+    if rejected:
+        out["warning"] = "فرمت فایل(های) زیر مجاز نیست: " + "، ".join(rejected)
     return jsonify(out), 201
 
 
 @app.route("/api/activity-progress/<int:apid>", methods=["PUT"])
 @token_required
 def api_update_activity_progress(apid):
-    """به‌روزرسانی مستقیم یک رکورد پیشرفت ماهانه در دیتابیس."""
+    """به‌روزرسانی مستقیم یک رکورد پیشرفت ماهانه در دیتابیس (با آپلود اختیاری مستندات)."""
     db = get_db()
     ap = db.execute(
         "SELECT * FROM activity_progress WHERE id=?", (apid,)
     ).fetchone()
     if not ap:
         return jsonify({"error": "رکورد پیشرفت یافت نشد"}), 404
-    d = request.get_json(force=True, silent=True) or {}
+    # پشتیبانی از JSON و multipart (هنگام ویرایش همراه با آپلود فایل)
+    if request.files:
+        d = {}
+        for k in ("year", "month", "physical_progress", "financial_progress", "description"):
+            v = request.form.get(k)
+            if v is not None:
+                d[k] = v
+    else:
+        d = request.get_json(force=True, silent=True) or {}
     fields, values = [], []
     if "year" in d:
         try:
@@ -1277,15 +1323,39 @@ def api_update_activity_progress(apid):
     if "description" in d:
         fields.append("description=?")
         values.append(clean_str(d["description"], 1000))
-    if not fields:
+    # ذخیره‌ی مستندات همراه (در همان تراکنش) — حتی اگر هیچ فیلد متنی فرستاده نشده باشد
+    rejected = []
+    if request.files:
+        for f in request.files.getlist("files"):
+            if not f or not f.filename:
+                continue
+            orig = safe_filename(f.filename)
+            ext = orig.rsplit(".", 1)[-1].lower() if "." in orig else ""
+            if ext not in ALLOWED_DOCS:
+                rejected.append(orig)
+                continue
+            stored = f"{gen_id()}_{secrets.token_hex(4)}.{ext}"
+            dest = UPLOAD_DIR / stored
+            f.save(str(dest))
+            size = dest.stat().st_size
+            db.execute(
+                "INSERT INTO activity_progress_documents "
+                "(id,activity_progress_id,project_id,orig_name,stored_name,file_size,mime_type,uploaded_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (gen_id(), apid, ap["project_id"], orig, stored, size, f.mimetype or "", now_iso()),
+            )
+    if not fields and not request.files:
         return jsonify({"error": "فیلدی برای به‌روزرسانی ارسال نشده است"}), 400
-    values.append(apid)
-    db.execute("UPDATE activity_progress SET " + ",".join(fields) + " WHERE id=?", values)
+    if fields:
+        values.append(apid)
+        db.execute("UPDATE activity_progress SET " + ",".join(fields) + " WHERE id=?", values)
     db.execute("UPDATE projects SET updated_at=? WHERE id=?", (now_iso(), ap["project_id"]))
     db.commit()
     row = db.execute("SELECT * FROM activity_progress WHERE id=?", (apid,)).fetchone()
     out = _act_progress_to_dict(row)
     out["documents"] = _load_activity_progress_docs(db, apid)
+    if rejected:
+        out["warning"] = "فرمت فایل(های) زیر مجاز نیست: " + "، ".join(rejected)
     return jsonify(out)
 
 
